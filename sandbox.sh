@@ -96,7 +96,7 @@ run_qemu() {
     qemu-system-i386 \
       -kernel arch/x86/boot/bzImage \
       -initrd "$INITRD_IMG" \
-      -append "console=ttyS0 quiet root=/dev/ram0" \
+      -append "console=ttyS0 root=/dev/ram0 debug ignore_loglevel loglevel=8 earlyprintk=ttyS0,115200 initcall_debug" \
       -nographic \
       -m 256
 }
