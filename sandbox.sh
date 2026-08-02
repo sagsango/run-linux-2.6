@@ -7,10 +7,73 @@ BUSYBOX_DIR="$BASE_DIR/busybox-1.35.0"
 ROOTFS_DIR="$BASE_DIR/rootfs"
 INITRD_IMG="$BASE_DIR/initrd_busybox.img"
 
+# --- Structural Verification Engine ---
+verify_and_build_structures() {
+    # 1. Always guarantee compilation dependencies exist in the new instance
+    if ! dpkg -s gcc-multilib >/dev/null 2>&1; then
+        echo "--> System update: Installing needed dev headers..."
+        apt-get update && apt-get install -y gcc-multilib
+    fi
+
+    # 2. Rebuild missing rootfs structure if a fresh git clone deleted it
+    if [ ! -d "$ROOTFS_DIR" ] || [ ! -d "$ROOTFS_DIR/dev" ]; then
+        echo "--> Restoring missing rootfs staging folders..."
+        mkdir -p "$ROOTFS_DIR"/{dev,proc,sys,etc,root,bin,sbin,usr}
+    fi
+
+    # 3. Always guarantee core virtual communications files exist
+    if [ ! -c "$ROOTFS_DIR/dev/console" ]; then
+        mknod -m 600 "$ROOTFS_DIR/dev/console" c 5 1 2>/dev/null || true
+    fi
+    if [ ! -c "$ROOTFS_DIR/dev/null" ]; then
+        mknod -m 666 "$ROOTFS_DIR/dev/null" c 1 3 2>/dev/null || true
+    fi
+
+    # 4. Enforce base initialization script availability
+    if [ ! -f "$ROOTFS_DIR/init" ]; then
+        cat << 'RINIT' > "$ROOTFS_DIR/init"
+#!/bin/sh
+mount -t proc none /proc
+mount -t sysfs none /sys
+echo "=================================================="
+echo " SUCCESS! Your Linux Kernel 2.6.39 System Is Alive! "
+echo "=================================================="
+exec /bin/sh
+RINIT
+        chmod +x "$ROOTFS_DIR/init"
+    fi
+
+    # 5. Fix missing BusyBox configurations if cloned fresh
+    if [ ! -f "$BUSYBOX_DIR/.config" ]; then
+        echo "--> Reconfiguring BusyBox compiler..."
+        cd "$BUSYBOX_DIR" && make defconfig
+        sed -i 's/# CONFIG_STATIC is not set/CONFIG_STATIC=y/' .config
+        sed -i 's/CONFIG_EXTRA_CFLAGS=""/CONFIG_EXTRA_CFLAGS="-m32 -march=i386"/' .config
+        sed -i 's/CONFIG_EXTRA_LDFLAGS=""/CONFIG_EXTRA_LDFLAGS="-m32"/' .config
+    fi
+
+    # 6. Fix missing Kernel configurations or hardcoded paths from the old workspace
+    if [ ! -f "$KERNEL_DIR/.config" ] || [ ! -f "$KERNEL_DIR/scripts/basic/Makefile" ]; then
+        echo "--> Re-initializing Kernel layout definitions..."
+        cd "$KERNEL_DIR"
+        make ARCH=i386 mrproper >/dev/null 2>&1
+        make ARCH=i386 defconfig
+        
+        echo "--> Re-applying code architecture patches..."
+        sed -i '1i #include <limits.h>' scripts/mod/sumversion.c 2>/dev/null
+        sed -i 's|if (labs(utsname()->version|if (0|g' init/version.c 2>/dev/null
+        sed -i 's|extern long syscall_trace_enter|extern __attribute__((regparm(0))) long syscall_trace_enter|g' arch/x86/include/asm/ptrace.h 2>/dev/null
+        sed -i 's|extern void syscall_trace_leave|extern __attribute__((regparm(0))) void syscall_trace_leave|g' arch/x86/include/asm/ptrace.h 2>/dev/null
+        sed -i 's/asmregparm long syscall_trace_enter/__attribute__((regparm(0))) long syscall_trace_enter/g' arch/x86/kernel/ptrace.c 2>/dev/null
+        sed -i 's/asmregparm void syscall_trace_leave/__attribute__((regparm(0))) void syscall_trace_leave/g' arch/x86/kernel/ptrace.c 2>/dev/null
+    fi
+}
+
 show_menu() {
     echo "=================================================="
     echo "       LINUX 2.6.39 SANDBOX AUTOMATION SCRIPT     "
     echo "=================================================="
+    echo "0) First time setup (just after git clone)"
     echo "1) Rebuild & Install Userspace (BusyBox)"
     echo "2) Recompile Kernel Only"
     echo "3) Recreate initrd.img Only (Fast Pack)"
@@ -22,10 +85,6 @@ show_menu() {
 
 pack_initrd() {
     echo "--> Packaging fresh initrd.img..."
-    if [ ! -d "$ROOTFS_DIR" ]; then
-        echo "Error: rootfs directory missing. Run Busybox installation first."
-        return 1
-    fi
     cd "$ROOTFS_DIR"
     find . -print0 | cpio --null -ov --format=newc 2>/dev/null | gzip -9 > "$INITRD_IMG"
     echo "--> Done! Image size: $(ls -lh $INITRD_IMG | awk '{print $5}')"
@@ -46,22 +105,18 @@ while true; do
     show_menu
     read -p "Select an action [1-6]: " choice
     case $choice in
+        0)  verify_and_build_structures
+            echo "Done the first time setup."
+            ;;
         1)
             echo "--> Compiling 32-bit Static BusyBox..."
-            cd "$BUSYBOX_DIR"
-            make -j$(nproc) && make install
-            echo "--> Synchronizing staging rootfs directory..."
-            mkdir -p "$ROOTFS_DIR"
+            cd "$BUSYBOX_DIR" && make -j$(nproc) && make install
             cp -av "$BUSYBOX_DIR/_install/"* "$ROOTFS_DIR/"
-            mkdir -p "$ROOTFS_DIR"/{dev,proc,sys,etc,root}
-            [ ! -c "$ROOTFS_DIR/dev/console" ] && mknod -m 600 "$ROOTFS_DIR/dev/console" c 5 1
-            [ ! -c "$ROOTFS_DIR/dev/null" ] && mknod -m 666 "$ROOTFS_DIR/dev/null" c 1 3
-            chmod +x "$ROOTFS_DIR/init" 2>/dev/null || true
+            pack_initrd
             ;;
         2)
             echo "--> Compiling Kernel changes..."
-            cd "$KERNEL_DIR"
-            make ARCH=i386 -j$(nproc)
+            cd "$KERNEL_DIR" && make ARCH=i386 -j$(nproc)
             ;;
         3)
             pack_initrd
@@ -72,12 +127,13 @@ while true; do
             ;;
         5)
             echo "--> Running FULL Sandbox Compilation and Pack pipeline..."
+            verify_and_build_structures
             cd "$BUSYBOX_DIR" && make -j$(nproc) && make install
-            mkdir -p "$ROOTFS_DIR" && cp -av "$BUSYBOX_DIR/_install/"* "$ROOTFS_DIR/"
+            cp -av "$BUSYBOX_DIR/_install/"* "$ROOTFS_DIR/"
             cd "$KERNEL_DIR" && make ARCH=i386 -j$(nproc)
             pack_initrd
             run_qemu
-	    exit 0
+            exit 0
             ;;
         6)
             echo "Exiting script. Happy hacking!"
@@ -89,3 +145,4 @@ while true; do
     esac
     echo ""
 done
+
