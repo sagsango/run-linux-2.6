@@ -27,29 +27,13 @@ initrd_busybox.img
 # Linux Kernel 2.6.39 Build Output Ignores
 # ====================================================================
 # Ignore built kernel images and configuration backups
-/linux-2.6.39/.config
-/linux-2.6.39/.config.old
-/linux-2.6.39/vmlinux
-/linux-2.6.39/System.map
 /linux-2.6.39/arch/x86/boot/bzImage
 /linux-2.6.39/arch/x86/boot/vmlinux.bin
-
-# Ignore auto-generated source headers and tools
-/linux-2.6.39/include/config/
-/linux-2.6.39/include/generated/
-/linux-2.6.39/scripts/basic/
-/linux-2.6.39/scripts/kconfig/
-/linux-2.6.39/scripts/mod/
 
 # ====================================================================
 # BusyBox 1.35.0 Build Output Ignores
 # ====================================================================
 # Ignore custom configuration and auto-generated build directory mappings
-/busybox-1.35.0/.config
-/busybox-1.35.0/.config.old
 /busybox-1.35.0/_install/
-/busybox-1.35.0/busybox
 /busybox-1.35.0/busybox_unstripped
-/busybox-1.35.0/include/config/
-/busybox-1.35.0/include/autoconf.h
 
