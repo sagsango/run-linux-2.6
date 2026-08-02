@@ -1,4 +1,5 @@
 #include <limits.h>
+#include <limits.h>
 #include <netinet/in.h>
 #ifdef __sun__
 #include <inttypes.h>
