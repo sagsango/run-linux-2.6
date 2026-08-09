@@ -45,6 +45,25 @@ void memstat(const char * msg) {
 	}
 }
 
+void self_maps(const char * msg) {
+	int fd, n;
+	static char buf[256];
+	/* Open /proc/self/maps using BusyBox's error-checking opener */
+	fd = open("/proc/self/maps", O_RDONLY);
+
+
+	printf("%s", msg);
+	fflush(stdout);
+
+	while ((n = read(fd, buf, 256)) > 0) {
+		write(1, buf, n);
+	}
+
+	/* Close the file descriptor safely (optional but good practice) */
+	close(fd);
+
+}
+
 int folsom_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int folsom_main(int argc, char **argv)
 {
@@ -67,6 +86,7 @@ int folsom_main(int argc, char **argv)
 	printf("Version - 0.1\n");
 	fflush(stdout);
 
+	self_maps("after start\n");
 	memstat("after start");
 
 	// 3. Iterate through all offset arguments provided
@@ -130,6 +150,9 @@ int folsom_main(int argc, char **argv)
 		return 1;
 	}
 
+
+	self_maps("before munmap\n");
+
 	printf("Done\n");
 	fflush(stdout);
 
@@ -137,6 +160,7 @@ int folsom_main(int argc, char **argv)
 	for (i=2; i<argc; ++i) {
 		munmap(addr[i], 4096);
 	}
+	self_maps("after unmap; before exit\n");
 	memstat("before exit");
 	return 0;
 }
