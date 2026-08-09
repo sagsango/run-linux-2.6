@@ -1522,6 +1522,20 @@ static void do_sync_mmap_readahead(struct vm_area_struct *vma,
 				   struct file *file,
 				   pgoff_t offset)
 {
+
+
+	// ---- DEBUG CRITICAL LOG START ----
+	printk(KERN_CRIT "READAHEAD TRIGGER: PID=[%d] File=[%s] Inode=[%lu] "
+	       "VMA_Start=[0x%lx] VMA_End=[0x%lx] VMA_Pgoff=[0x%llx] Req_Offset=[0x%llx]\n",
+	       current->pid,
+	       file->f_path.dentry->d_name.name,
+	       (unsigned long)file->f_path.dentry->d_inode->i_ino,
+	       vma->vm_start,
+	       vma->vm_end,
+	       (unsigned long long)vma->vm_pgoff,
+	       (unsigned long long)offset);
+	// ---- DEBUG CRITICAL LOG END ----
+
 	unsigned long ra_pages;
 	struct address_space *mapping = file->f_mapping;
 
