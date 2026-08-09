@@ -24,6 +24,122 @@
 #include <linux/sched.h>
 #include <linux/pagemap.h> // Needed for struct page definitions
 
+#include <linux/mm.h>
+#include <asm/pgtable.h>
+
+static void dump_address_space_info(struct file *filp)
+{
+    struct address_space *mapping = filp->f_mapping;
+    struct inode *inode = filp->f_path.dentry->d_inode;
+    struct vm_area_struct *vma;
+    struct prio_tree_iter iter;
+
+    #define PAGE_BATCH_SIZE 16
+    struct page *pages[PAGE_BATCH_SIZE];
+    pgoff_t index = 0;
+    int found, i;
+
+    printk(KERN_INFO "============= EXT3_IOC_ADDRESS_SPACE START =============\n");
+    printk(KERN_INFO "File Name  : %s\n", filp->f_path.dentry->d_name.name);
+    printk(KERN_INFO "Inode Num  : %lu\n", (unsigned long)inode->i_ino);
+    printk(KERN_INFO "Total Pages: %lu\n", mapping->nrpages);
+
+    // -----------------------------------------------------------------
+    // 1. ITERATE PHYSICAL PAGES IN PAGE CACHE
+    // -----------------------------------------------------------------
+    printk(KERN_INFO "--- Resident Pages in Page Cache ---\n");
+    rcu_read_lock();
+    do {
+        found = radix_tree_gang_lookup(&mapping->page_tree, (void **)pages, index, PAGE_BATCH_SIZE);
+        for (i = 0; i < found; i++) {
+            struct page *page = pages[i];
+            if (!page)
+                continue;
+
+            printk(KERN_INFO "  [Page Cache Found] File Page Index: %lu | PFN: %lu | Page Flag Bits: 0x%lx | MapCount: %d\n",
+                   (unsigned long)page->index, (unsigned long)page_to_pfn(page), page->flags, atomic_read(&page->_mapcount) + 1);
+
+            if (page->index >= index)
+                index = page->index + 1;
+        }
+    } while (found == PAGE_BATCH_SIZE);
+    rcu_read_unlock();
+
+    // -----------------------------------------------------------------
+    // 2. ITERATE MEMORY MAPPINGS (VMAs) AND WALK THEIR PAGE TABLES
+    // -----------------------------------------------------------------
+    printk(KERN_INFO "--- Active Memory Mappings (VMAs) ---\n");
+    spin_lock(&mapping->i_mmap_lock);
+
+    vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, 0, ULONG_MAX) {
+        struct mm_struct *mm = vma->vm_mm;
+        struct task_struct *task = NULL;
+        pid_t owner_pid = 0;
+        char owner_comm[TASK_COMM_LEN] = "Unknown";
+        unsigned long addr;
+
+        if (mm) {
+            rcu_read_lock();
+            for_each_process(task) {
+                if (task->mm == mm) {
+                    owner_pid = task->pid;
+                    strlcpy(owner_comm, task->comm, TASK_COMM_LEN);
+                    break;
+                }
+            }
+            rcu_read_unlock();
+        }
+
+        printk(KERN_INFO "  [VMA Found] Owner Process: %s [%d] | Range: [0x%lx - 0x%lx] | File Page Pgoff: %lu | Flags: 0x%lx\n",
+               owner_comm, owner_pid, vma->vm_start, vma->vm_end, vma->vm_pgoff, vma->vm_flags);
+
+        // Skip if there is no memory descriptor associated (e.g., zombie tasks or special kernel states)
+        if (!mm)
+            continue;
+
+        // Walk the virtual memory address range page by page
+        for (addr = vma->vm_start; addr < vma->vm_end; addr += PAGE_SIZE) {
+            pgd_t *pgd;
+            pud_t *pud;
+            pmd_t *pmd;
+            pte_t *ptep, pte;
+            spinlock_t *ptl;
+            unsigned long pfn;
+
+            // 1. Look up Page Global Directory
+            pgd = pgd_offset(mm, addr);
+            if (pgd_none(*pgd) || pgd_bad(*pgd))
+                continue;
+
+            // 2. Look up Page Upper Directory (In x86 32-bit non-PAE, this folds into PGD)
+            pud = pud_offset(pgd, addr);
+            if (pud_none(*pud) || pud_bad(*pud))
+                continue;
+
+            // 3. Look up Page Middle Directory (In x86 32-bit non-PAE, this folds too)
+            pmd = pmd_offset(pud, addr);
+            if (pmd_none(*pmd) || pmd_bad(*pmd))
+                continue;
+
+            // 4. Look up Page Table Entry and lock it to prevent race conditions during read
+            ptep = pte_offset_map_lock(mm, pmd, addr, &ptl);
+            pte = *ptep;
+
+            // Check if the page table entry is valid and actually present in physical memory
+            if (pte_present(pte)) {
+                pfn = pte_pfn(pte);
+                printk(KERN_INFO "    -> [VMA PFN] Virt Addr: 0x%lx | PFN: %lu\n", addr, pfn);
+            }
+
+            // Unlock page table before moving to the next address loop
+            pte_unmap_unlock(ptep, ptl);
+        }
+    }
+    spin_unlock(&mapping->i_mmap_lock);
+
+    printk(KERN_INFO "============== EXT3_IOC_ADDRESS_SPACE END ==============\n");
+}
+#if 0
 static void dump_address_space_info(struct file *filp)
 {
     struct address_space *mapping = filp->f_mapping;
@@ -98,7 +214,7 @@ static void dump_address_space_info(struct file *filp)
 
     printk(KERN_INFO "============== EXT3_IOC_ADDRESS_SPACE END ==============\n");
 }
-
+#endif
 
 
 long ext3_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
