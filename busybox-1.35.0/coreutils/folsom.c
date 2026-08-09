@@ -31,6 +31,7 @@
 
 
 void memstat(const char * msg) {
+	return;
 	int statm_fd = open("/proc/self/statm", O_RDONLY);
 	if (statm_fd >= 0) {
 		static char statm_buf[128];
