@@ -82,7 +82,7 @@ int folsom_main(int argc, char **argv)
 
 		memstat("before mmap");
 		// 4. Mmap a 4KB chunk at the designated offset
-		addr[i] = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, offset);
+		addr[i] = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset);
 		memstat("after mmap");
 		
 		if (addr[i] == MAP_FAILED) {
