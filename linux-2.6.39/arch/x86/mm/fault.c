@@ -1121,6 +1121,11 @@ retry:
 	 */
 good_area:
 	if (unlikely(access_error(error_code, vma))) {
+		printk(KERN_CRIT "pid:[%d], access_error[%c != %c]\n",
+		current->pid,
+		error_code & PF_WRITE ? 'W' : '?',
+		vma->vm_flags & VM_WRITE ? 'W' : (vma->vm_flags & VM_READ ? 'R' : '?'));
+
 		bad_area_access_error(regs, error_code, address);
 		return;
 	}
