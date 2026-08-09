@@ -33,7 +33,7 @@ int folsom_main(int argc, char **argv)
 	filename = argv[1];
 
 	// 2. Open the file safely using BusyBox helper utilities
-	fd = xopen(filename, O_RDONLY);
+	fd = xopen(filename, O_RDWR);
 
 	void * addr;
 
@@ -51,7 +51,7 @@ int folsom_main(int argc, char **argv)
 		}
 
 		// 4. Mmap a 4KB chunk at the designated offset
-		addr = mmap(NULL, 4096, PROT_READ, MAP_SHARED, fd, offset);
+		addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset);
 		
 		if (addr == MAP_FAILED) {
 			bb_perror_msg("mmap failed for offset %lld", (long long)offset);
