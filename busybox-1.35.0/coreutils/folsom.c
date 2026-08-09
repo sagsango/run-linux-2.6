@@ -48,6 +48,7 @@ int folsom_main(int argc, char **argv)
 	void * addr;
 
 	printf("Version - 0.1\n");
+	fflush(stdout);
 
 	// 3. Iterate through all offset arguments provided
 	for (i = 2; i < argc; i++) {
@@ -68,6 +69,7 @@ int folsom_main(int argc, char **argv)
 		} else {
 			printf("Successfully mapped 4K block at offset %lld to address %p\n", 
 			       (long long)offset, addr);
+			fflush(stdout);
 			
 			// Optional: Clean up and unmap the memory block
 			// munmap(addr, 4096); // TODO: unmap all
@@ -84,12 +86,14 @@ int folsom_main(int argc, char **argv)
 	for (i=0; i<N_READ; ++i) {
 		char c = buf[i];
 		printf("Read char at offset [%d] = %c\n", read_offsets[i], c);
+		fflush(stdout);
 	}
 
 	for (i=0; i<N_WRITE; ++i) {
 		char c = 'a' + i;
 		buf[i] = c;
 		printf("Wrote char %c at offset = %d\n", c, write_offset[i]);
+		fflush(stdout);
 	}
 
 
@@ -99,6 +103,7 @@ int folsom_main(int argc, char **argv)
 	}
 
 	printf("Done\n");
+	fflush(stdout);
 
 	close(fd);
 	return 0;
