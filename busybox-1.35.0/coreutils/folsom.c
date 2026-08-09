@@ -49,7 +49,7 @@ int folsom_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int folsom_main(int argc, char **argv)
 {
 	int fd;
-	int i;
+	int i, j;
 	const char *filename;
 
 	// 1. Ensure minimal arguments (folsom filename offset1 [offset2 ...])
@@ -102,24 +102,26 @@ int folsom_main(int argc, char **argv)
 	static long read_offsets[N_READ] = {0};
 	static long write_offset[N_WRITE] = {0};
 
-	char * buf = (char*)addr[argc-1];
+	for (j=2; j<argc; ++j) {
+		char * buf = (char*)addr[j];
 
-	for (i=0; i<N_READ; ++i) {
-		memstat("before read");
-		char c = buf[i];
-		printf("Read char at offset [%d] = %c\n", read_offsets[i], c);
-		fflush(stdout);
-		memstat("after read");
+		for (i=0; i<N_READ; ++i) {
+			memstat("before read");
+			char c = buf[i];
+			printf("Read char at offset [%d] = %c\n", read_offsets[i], c);
+			fflush(stdout);
+			memstat("after read");
 
-	}
+		}
 
-	for (i=0; i<N_WRITE; ++i) {
-		memstat("before write");
-		char c = 'a' + i;
-		buf[i] = c;
-		printf("Wrote char %c at offset = %d\n", c, write_offset[i]);
-		fflush(stdout);
-		memstat("after write");
+		for (i=0; i<N_WRITE; ++i) {
+			memstat("before write");
+			char c = 'a' + i;
+			buf[i] = c;
+			printf("Wrote char %c at offset = %d\n", c, write_offset[i]);
+			fflush(stdout);
+			memstat("after write");
+		}
 	}
 
 
