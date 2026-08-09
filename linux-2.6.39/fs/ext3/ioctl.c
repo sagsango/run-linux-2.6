@@ -17,6 +17,90 @@
 #include <linux/compat.h>
 #include <asm/uaccess.h>
 
+
+
+#include <linux/prio_tree.h>
+#include <linux/radix-tree.h>
+#include <linux/sched.h>
+#include <linux/pagemap.h> // Needed for struct page definitions
+
+static void dump_address_space_info(struct file *filp)
+{
+    struct address_space *mapping = filp->f_mapping;
+    struct inode *inode = filp->f_path.dentry->d_inode;
+    struct vm_area_struct *vma;
+    struct prio_tree_iter iter;
+
+    // Batch lookup configurations for 2.6.39 Radix tree scanning
+    #define PAGE_BATCH_SIZE 16
+    struct page *pages[PAGE_BATCH_SIZE];
+    pgoff_t index = 0;
+    int found, i;
+
+    printk(KERN_INFO "============= EXT3_IOC_ADDRESS_SPACE START =============\n");
+    printk(KERN_INFO "File Name  : %s\n", filp->f_path.dentry->d_name.name);
+    printk(KERN_INFO "Inode Num  : %lu\n", (unsigned long)inode->i_ino);
+    printk(KERN_INFO "Total Pages: %lu\n", mapping->nrpages);
+
+    // -----------------------------------------------------------------
+    // 1. ITERATE PHYSICAL PAGES SAFELY (2.6.39 Mainline Pattern)
+    // -----------------------------------------------------------------
+    printk(KERN_INFO "--- Resident Pages in Page Cache ---\n");
+
+    rcu_read_lock(); // Protect the dynamic radix lookup tracking path
+    do {
+        found = radix_tree_gang_lookup(&mapping->page_tree, (void **)pages, index, PAGE_BATCH_SIZE);
+        for (i = 0; i < found; i++) {
+            struct page *page = pages[i];
+
+            // Validate pointer and ignore temporary/sentinel tracking states
+            if (!page /* || radix_tree_exception(page)*/)
+                continue;
+
+            printk(KERN_INFO "  [Page Found] File Page Index: %lu | Page Flag Bits: 0x%lx | MapCount: %d\n",
+                   (unsigned long)page->index, page->flags, atomic_read(&page->_mapcount) + 1);
+
+            // Advance lookup index past the processed page index framework
+            if (page->index >= index)
+                index = page->index + 1;
+        }
+    } while (found == PAGE_BATCH_SIZE);
+    rcu_read_unlock();
+
+    // -----------------------------------------------------------------
+    // 2. ITERATE MEMORY MAPPINGS (VMAs) IN THE PRIO TREE
+    // -----------------------------------------------------------------
+    printk(KERN_INFO "--- Active Memory Mappings (VMAs) ---\n");
+    spin_lock(&mapping->i_mmap_lock);
+
+    vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, 0, ULONG_MAX) {
+        struct mm_struct *mm = vma->vm_mm;
+        struct task_struct *task = NULL;
+        pid_t owner_pid = 0;
+        char owner_comm[TASK_COMM_LEN] = "Unknown";
+
+        if (mm) {
+            rcu_read_lock();
+            for_each_process(task) {
+                if (task->mm == mm) {
+                    owner_pid = task->pid;
+                    strlcpy(owner_comm, task->comm, TASK_COMM_LEN);
+                    break;
+                }
+            }
+            rcu_read_unlock();
+        }
+
+        printk(KERN_INFO "  [VMA Found] Owner Process: %s [%d] | Range: [0x%lx - 0x%lx] | File Page Pgoff: %lu | Flags: 0x%lx\n",
+               owner_comm, owner_pid, vma->vm_start, vma->vm_end, vma->vm_pgoff, vma->vm_flags);
+    }
+    spin_unlock(&mapping->i_mmap_lock);
+
+    printk(KERN_INFO "============== EXT3_IOC_ADDRESS_SPACE END ==============\n");
+}
+
+
+
 long ext3_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct inode *inode = filp->f_dentry->d_inode;
@@ -27,6 +111,10 @@ long ext3_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	ext3_debug ("cmd = %u, arg = %lu\n", cmd, arg);
 
 	switch (cmd) {
+	case EXT3_IOC_ADDRESS_SPACE:
+		// Run our diagnostic dump loop
+		dump_address_space_info(filp);
+		return 0; // Success return back to user space
 	case EXT3_IOC_GETFLAGS:
 		ext3_get_inode_flags(ei);
 		flags = ei->i_flags & EXT3_FL_USER_VISIBLE;

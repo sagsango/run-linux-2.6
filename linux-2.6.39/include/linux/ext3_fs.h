@@ -242,6 +242,7 @@ struct ext3_new_group_data {
 #endif
 #define EXT3_IOC_GETRSVSZ		_IOR('f', 5, long)
 #define EXT3_IOC_SETRSVSZ		_IOW('f', 6, long)
+#define EXT3_IOC_ADDRESS_SPACE		_IO('f', 20)
 
 /*
  * ioctl commands in 32 bit emulation

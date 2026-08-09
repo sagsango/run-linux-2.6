@@ -15,6 +15,16 @@
 
 #include "libbb.h"
 #include <sys/mman.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <unistd.h>
+
+#define EXT3_IOC_ADDRESS_SPACE    _IO('f', 20)
+
+
 
 #define N_READ 1
 #define N_WRITE 1
@@ -82,6 +92,11 @@ int folsom_main(int argc, char **argv)
 		printf("Wrote char %c at offset = %d\n", c, write_offset[i]);
 	}
 
+
+	if (ioctl(fd, EXT3_IOC_ADDRESS_SPACE, 0) < 0) {
+		perror("[-] ioctl failed");
+		return 1;
+	}
 
 	printf("Done\n");
 
