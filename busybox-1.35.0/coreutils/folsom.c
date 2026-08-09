@@ -28,6 +28,22 @@
 
 #define N_READ 1
 #define N_WRITE 1
+
+
+void memstat(const char * msg) {
+	int statm_fd = open("/proc/self/statm", O_RDONLY);
+	if (statm_fd >= 0) {
+		static char statm_buf[128];
+		int n = read(statm_fd, statm_buf, sizeof(statm_buf) - 1);
+		if (n > 0) {
+			statm_buf[n] = '\0';
+			printf("%s [RAW STATM PAGES]: %s", msg, statm_buf);
+		}
+		close(statm_fd);
+		fflush(stdout);
+	}
+}
+
 int folsom_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int folsom_main(int argc, char **argv)
 {
@@ -45,10 +61,12 @@ int folsom_main(int argc, char **argv)
 	// 2. Open the file safely using BusyBox helper utilities
 	fd = xopen(filename, O_RDWR);
 
-	void * addr;
+	static void * addr[256];
 
 	printf("Version - 0.1\n");
 	fflush(stdout);
+
+	memstat("after start");
 
 	// 3. Iterate through all offset arguments provided
 	for (i = 2; i < argc; i++) {
@@ -61,14 +79,16 @@ int folsom_main(int argc, char **argv)
 			continue;
 		}
 
+		memstat("before mmap");
 		// 4. Mmap a 4KB chunk at the designated offset
-		addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset);
+		addr[i] = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset);
+		memstat("after mmap");
 		
-		if (addr == MAP_FAILED) {
+		if (addr[i] == MAP_FAILED) {
 			bb_perror_msg("mmap failed for offset %lld", (long long)offset);
 		} else {
 			printf("Successfully mapped 4K block at offset %lld to address %p\n", 
-			       (long long)offset, addr);
+			       (long long)offset, addr[i]);
 			fflush(stdout);
 			
 			// Optional: Clean up and unmap the memory block
@@ -78,22 +98,27 @@ int folsom_main(int argc, char **argv)
 
 	
 
-	long read_offsets[N_READ] = {0};
-	long write_offset[N_WRITE] = {0};
+	static long read_offsets[N_READ] = {0};
+	static long write_offset[N_WRITE] = {0};
 
-	char * buf = (char*)addr;
+	char * buf = (char*)addr[argc-1];
 
 	for (i=0; i<N_READ; ++i) {
+		memstat("before read");
 		char c = buf[i];
 		printf("Read char at offset [%d] = %c\n", read_offsets[i], c);
 		fflush(stdout);
+		memstat("after read");
+
 	}
 
 	for (i=0; i<N_WRITE; ++i) {
+		memstat("before write");
 		char c = 'a' + i;
 		buf[i] = c;
 		printf("Wrote char %c at offset = %d\n", c, write_offset[i]);
 		fflush(stdout);
+		memstat("after write");
 	}
 
 
@@ -106,6 +131,10 @@ int folsom_main(int argc, char **argv)
 	fflush(stdout);
 
 	close(fd);
+	for (i=2; i<argc; ++i) {
+		munmap(addr[i], 4096);
+	}
+	memstat("before exit");
 	return 0;
 }
 
