@@ -1608,6 +1608,24 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (offset >= size)
 		return VM_FAULT_SIGBUS;
 
+
+//	printk(KERN_CRIT "filemap_fault() happend!\n");
+
+	/* Debug message: Captures comprehensive VMA, address, file, and process details */
+        if (file && file->f_path.dentry && file->f_path.dentry->d_name.name) {
+                if (strstr(file->f_path.dentry->d_name.name, "folsom") != NULL) {
+                        pr_info("FAULT_TRACKER: [PID: %d | Cmd: %s] "
+                                "File: %s (Inode: %lu) "
+                                "Fault Addr: 0x%lx "
+                                "VMA: [0x%lx - 0x%lx] PGOFF: %lu (Byte Off: %llu)\n",
+                                current->pid, current->comm,
+                                file->f_path.dentry->d_name.name, inode->i_ino,
+                                vmf->virtual_address,
+                                vma->vm_start, vma->vm_end, offset,
+                                ((unsigned long long)offset << PAGE_SHIFT));
+               }
+        }
+
 	/*
 	 * Do we have something in the page cache already?
 	 */
@@ -1722,6 +1740,18 @@ const struct vm_operations_struct generic_file_vm_ops = {
 int generic_file_mmap(struct file * file, struct vm_area_struct * vma)
 {
 	struct address_space *mapping = file->f_mapping;
+
+	// ---- DEBUG MESSAGE START ----
+	printk(KERN_DEBUG "MMAP DEBUG: PID=[%d] File=[%s] Inode=[%lu] "
+	       "VMA_Start=[0x%lx] VMA_End=[0x%lx] File_Offset=[0x%llx]\n",
+	       current->pid,
+	       file->f_path.dentry->d_name.name,
+	       (unsigned long)file->f_path.dentry->d_inode->i_ino,
+	       vma->vm_start,
+	       vma->vm_end,
+	       (unsigned long long)vma->vm_pgoff << PAGE_SHIFT);
+	// ---- DEBUG MESSAGE END ----
+
 
 	if (!mapping->a_ops->readpage)
 		return -ENOEXEC;
