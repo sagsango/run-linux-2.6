@@ -1545,6 +1545,8 @@ static void do_sync_mmap_readahead(struct vm_area_struct *vma,
 
 	if (VM_SequentialReadHint(vma) ||
 			offset - 1 == (ra->prev_pos >> PAGE_CACHE_SHIFT)) {
+	    /* XXX: sequential read  vma flag*/
+	    printk(KERN_CRIT "sequntial read flag in vma\n");
 		page_cache_sync_readahead(mapping, ra, file, offset,
 					  ra->ra_pages);
 		return;
@@ -1560,11 +1562,18 @@ static void do_sync_mmap_readahead(struct vm_area_struct *vma,
 	if (ra->mmap_miss > MMAP_LOTSAMISS)
 		return;
 
+
 	/*
 	 * mmap read-around
 	 */
 	ra_pages = max_sane_readahead(ra->ra_pages);
+
+	printk(KERN_CRIT "READAHEAD TRIGGER: non sequntial"
+			 "read flag in vma for %d pages\n",
+			 ra_pages);
+	dump_stack();
 	if (ra_pages) {
+
 		ra->start = max_t(long, 0, offset - ra_pages/2);
 		ra->size = ra_pages;
 		ra->async_size = 0;
