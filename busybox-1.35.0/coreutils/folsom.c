@@ -198,7 +198,7 @@ int folsom_main(int argc, char **argv)
 		}
 	}
 
-	
+	anon_mapping();	
 
 	static long read_offsets[N_READ] = {0};
 	static long write_offset[N_WRITE] = {0};
