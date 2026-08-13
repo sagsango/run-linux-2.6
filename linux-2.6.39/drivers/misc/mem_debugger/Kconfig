@@ -1,0 +1,9 @@
+config MEM_DEBUGGER
+	tristate "Memory debugger by Sagar"
+	default y
+	help
+	  Provides a character device for triggering Linux memory
+	  debugging operations from userspace.
+
+	  This driver is intended for debugging and experimentation
+	  with the Linux memory-management subsystem.

@@ -398,6 +398,10 @@ ondemand_readahead(struct address_space *mapping,
 		   bool hit_readahead_marker, pgoff_t offset,
 		   unsigned long req_size)
 {
+
+
+	dump_stack();
+
 	unsigned long max = max_sane_readahead(ra->ra_pages);
 
 	/*
