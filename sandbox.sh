@@ -97,8 +97,10 @@ run_qemu() {
       -kernel arch/x86/boot/bzImage \
       -initrd "$INITRD_IMG" \
       -hda ../disk.img \
-      -append "console=ttyS0 root=/dev/ram0 debug ignore_loglevel loglevel=8 earlyprintk=ttyS0,115200 initcall_debug" \
+      -hdb ../swap.img \
+      -append "console=ttyS0 root=/dev/ram0 resume=/dev/sdb no_console_suspend debug ignore_loglevel loglevel=8 earlyprintk=ttyS0,115200 initcall_debug" \
       -nographic \
+      -monitor telnet:127.0.0.1:1234,server,nowait \
       -m 256
 }
 

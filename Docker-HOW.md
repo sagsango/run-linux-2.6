@@ -13,7 +13,8 @@ sudo docker run -it \
   qemu-kernel26:latest
 
 # or
-sudo docker run -it   --device=/dev/kvm   --device=/dev/net/tun   --cap-add=NET_ADMIN   -v "$(pwd)":/labs   qemu-kernel26:latest
+# sudo docker run -it   --device=/dev/kvm   --device=/dev/net/tun   --cap-add=NET_ADMIN   -v "$(pwd)":/labs   qemu-kernel26:latest
+sudo docker run -it -p 1234:1234  --device=/dev/kvm   --device=/dev/net/tun   --cap-add=NET_ADMIN   -v "$(pwd)":/labs  qemu-kernel26:folsom-ready
 
 
 # How to poweroff the vm
