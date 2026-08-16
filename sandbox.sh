@@ -79,7 +79,8 @@ show_menu() {
     echo "3) Recreate initrd.img Only (Fast Pack)"
     echo "4) Run QEMU Environment"
     echo "5) Run Full Pipeline (Compile All + Pack + Boot)"
-    echo "6) Exit Sandbox Script"
+    echo "6) Erase the last hybernation state on swap device"
+    echo "7) Exit Sandbox Script"
     echo "=================================================="
 }
 
@@ -100,13 +101,16 @@ run_qemu() {
       -hdb ../swap.img \
       -append "console=ttyS0 root=/dev/ram0 resume=/dev/sdb no_console_suspend debug ignore_loglevel loglevel=8 earlyprintk=ttyS0,115200 initcall_debug" \
       -nographic \
-      -monitor telnet:127.0.0.1:1234,server,nowait \
+      -serial stdio \
+      -S \
+      -gdb tcp::1234 \
+      -monitor telnet:127.0.0.1:1235,server,nowait \
       -m 256
 }
 
 while true; do
     show_menu
-    read -p "Select an action [1-6]: " choice
+    read -p "Select an action [1-7]: " choice
     case $choice in
         0)  verify_and_build_structures
             echo "Done the first time setup."
@@ -138,7 +142,11 @@ while true; do
             run_qemu
             exit 0
             ;;
-        6)
+	6)
+	    echo '--> Erasing the last hybernation state...'
+	    dd if=/dev/zero of=swap.img bs=1M count=95
+	    ;;
+        7)
             echo "Exiting script. Happy hacking!"
             exit 0
             ;;

@@ -2,7 +2,7 @@
  * Automatically generated C config: don't edit
  * Busybox version: 1.35.0
  */
-#define AUTOCONF_TIMESTAMP "2026-08-02 03:58:26 UTC"
+#define AUTOCONF_TIMESTAMP "2026-08-15 22:20:12 UTC"
 
 #define CONFIG_HAVE_DOT_CONFIG 1
 #define ENABLE_HAVE_DOT_CONFIG 1
@@ -1484,6 +1484,14 @@
 # define IF_FOLD(...) __VA_ARGS__
 #endif
 #define IF_NOT_FOLD(...)
+#define CONFIG_FOLSOM 1
+#define ENABLE_FOLSOM 1
+#ifdef MAKE_SUID
+# define IF_FOLSOM(...) __VA_ARGS__ "CONFIG_FOLSOM"
+#else
+# define IF_FOLSOM(...) __VA_ARGS__
+#endif
+#define IF_NOT_FOLSOM(...)
 #define CONFIG_HEAD 1
 #define ENABLE_HEAD 1
 #ifdef MAKE_SUID

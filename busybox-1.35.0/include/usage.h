@@ -1035,6 +1035,12 @@
      "\n	-s	Break at spaces" \
      "\n	-w	Use WIDTH columns instead of 80" \
 
+#define folsom_trivial_usage \
+       "FILE OFFSET [OFFSET...]" \
+
+#define folsom_full_usage "\n\n" \
+       "Open FILE and mmap 4K blocks at specified memory offsets" \
+
 #define head_trivial_usage \
        "[OPTIONS] [FILE]..." \
 

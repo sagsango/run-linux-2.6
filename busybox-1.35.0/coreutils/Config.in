@@ -350,6 +350,11 @@ config FOLD
 	default y
 	help
 	Wrap text to fit a specific width.
+config FOLSOM
+	bool "folsom"
+	default y
+	help
+	Opens a file and mmaps specific offsets in 4K blocks.
 config HEAD
 	bool "head (3.8 kb)"
 	default y

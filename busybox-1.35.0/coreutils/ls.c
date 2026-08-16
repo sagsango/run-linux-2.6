@@ -1067,7 +1067,7 @@ int ls_main(int argc UNUSED_PARAM, char **argv)
 	unsigned dndirs;
 	unsigned i;
 
-	printf("Hello from Folsom\n");
+	//printf("Hello from Folsom\n");
 
 #if ENABLE_FEATURE_LS_COLOR
 	/* colored LS support by JaWi, janwillem.janssen@lxtreme.nl */

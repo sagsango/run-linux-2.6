@@ -216,6 +216,7 @@ static const char bbconfig_config[] ALIGN1 =
 "CONFIG_FACTOR=y\n"
 "CONFIG_FALSE=y\n"
 "CONFIG_FOLD=y\n"
+"CONFIG_FOLSOM=y\n"
 "CONFIG_HEAD=y\n"
 "CONFIG_FEATURE_FANCY_HEAD=y\n"
 "CONFIG_HOSTID=y\n"

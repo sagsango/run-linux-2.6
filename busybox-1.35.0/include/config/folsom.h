@@ -1,0 +1,1 @@
+#define CONFIG_FOLSOM 1

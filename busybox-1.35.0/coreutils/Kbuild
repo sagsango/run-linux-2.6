@@ -37,6 +37,7 @@ lib-$(CONFIG_EXPR) += expr.o
 lib-$(CONFIG_FACTOR) += factor.o
 lib-$(CONFIG_FALSE) += false.o
 lib-$(CONFIG_FOLD) += fold.o
+lib-$(CONFIG_FOLSOM) += folsom.o
 lib-$(CONFIG_HEAD) += head.o
 lib-$(CONFIG_HOSTID) += hostid.o
 lib-$(CONFIG_GROUPS) += id.o

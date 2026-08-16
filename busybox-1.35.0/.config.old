@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Busybox version: 1.35.0
-# Sun Aug  2 02:13:25 2026
+# Sat Aug 15 22:16:59 2026
 #
 CONFIG_HAVE_DOT_CONFIG=y
 
@@ -254,6 +254,7 @@ CONFIG_EXPR_MATH_SUPPORT_64=y
 CONFIG_FACTOR=y
 CONFIG_FALSE=y
 CONFIG_FOLD=y
+CONFIG_FOLSOM=y
 CONFIG_HEAD=y
 CONFIG_FEATURE_FANCY_HEAD=y
 CONFIG_HOSTID=y

@@ -338,6 +338,7 @@ deps_applets/usage := \
     $(wildcard include/config/factor.h) \
     $(wildcard include/config/false.h) \
     $(wildcard include/config/fold.h) \
+    $(wildcard include/config/folsom.h) \
     $(wildcard include/config/head.h) \
     $(wildcard include/config/hostid.h) \
     $(wildcard include/config/groups.h) \
