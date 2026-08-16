@@ -1,24 +1,31 @@
 /*
  * iommu_debugger.c
  *
- * Linux 2.6.39
+ * Linux 2.6.39 Intel IOMMU / DMA API test module
  *
- * Exercises the real Linux DMA/IOMMU path using PCI device 00:02.0.
+ * Target:
+ *     QEMU e1000
+ *     PCI 00:02.0
+ *     Intel 8086:100e
  *
- * QEMU device:
- *   00:02.0  Intel Ethernet
- *   vendor = 0x8086
- *   device = 0x10d3
+ * This module intentionally exercises the DMA API:
  *
- * debugfs:
+ *   dma_map_single()
+ *   dma_sync_single_for_device()
+ *   dma_sync_single_for_cpu()
+ *   dma_unmap_single()
  *
- *   /sys/kernel/debug/iommu_debugger/control
+ * It also exercises:
  *
- * Write:
+ *   DMA_TO_DEVICE
+ *   DMA_FROM_DEVICE
+ *   DMA_BIDIRECTIONAL
  *
- *   echo 1 > control
+ * multiple buffer sizes and repeated mappings.
  *
- * to execute one IOMMU DMA mapping/unmapping test.
+ * IMPORTANT:
+ * This does NOT itself expose the internal VT-d IOTLB.
+ * For that we instrument drivers/pci/intel-iommu.c.
  */
 
 #include <linux/module.h>
@@ -29,224 +36,424 @@
 #include <linux/slab.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
-#include <linux/fs.h>
-#include <linux/mm.h>
+#include <linux/string.h>
 
-#define DRIVER_NAME "iommu_debugger"
+#define DRV_NAME        "iommu_debugger"
 
-#define TEST_PCI_BUS       0
-#define TEST_PCI_SLOT      2
-#define TEST_PCI_FUNCTION  0
+#define TEST_VENDOR     PCI_VENDOR_ID_INTEL
+#define TEST_DEVICE     0x100e       /* QEMU e1000 */
 
-#define TEST_VENDOR_ID     0x8086
-#define TEST_DEVICE_ID     0x10d3
-
-#define TEST_SIZE          PAGE_SIZE
+#define TEST_BUF_SIZE   4096
+#define NUM_REPEATS     4
 
 static struct pci_dev *test_pdev;
+static struct dentry *debug_dir;
+static struct dentry *debug_control;
 
-static struct dentry *debugfs_dir;
-static struct dentry *debugfs_control;
+static int debug_enabled;
 
+/* ------------------------------------------------------------ */
+/* Logging                                                       */
+/* ------------------------------------------------------------ */
 
-/*
- * ------------------------------------------------------------
- * DMA TEST
- * ------------------------------------------------------------
- *
- * This is the important part.
- *
- * We intentionally use the Linux DMA API rather than directly
- * touching Intel IOMMU page tables.
- *
- * On an IOMMU-enabled system:
- *
- *     CPU virtual address
- *             |
- *             v
- *        physical RAM
- *             |
- *             v
- *       IOMMU page table
- *             |
- *             v
- *       DMA/I/O address
- *
- */
+#define IOMMU_DBG(fmt, args...)                         \
+	do {                                                \
+		if (debug_enabled)                              \
+			pr_info("IOMMU-DBG: " fmt, ##args);         \
+	} while (0)
 
-static int iommu_run_dma_test(void)
+#define IOMMU_ERR(fmt, args...)                         \
+	pr_err("IOMMU-DBG-ERROR: " fmt, ##args)
+
+/* ------------------------------------------------------------ */
+/* Dump PCI information                                         */
+/* ------------------------------------------------------------ */
+
+static void dump_pci_info(struct pci_dev *pdev)
+{
+	u16 vendor;
+	u16 device;
+	u16 command;
+	u16 status;
+
+	pci_read_config_word(pdev, PCI_VENDOR_ID, &vendor);
+	pci_read_config_word(pdev, PCI_DEVICE_ID, &device);
+	pci_read_config_word(pdev, PCI_COMMAND, &command);
+	pci_read_config_word(pdev, PCI_STATUS, &status);
+
+	IOMMU_DBG("PCI DEVICE INFORMATION\n");
+
+	IOMMU_DBG("  bus             = %02x\n",
+		  pdev->bus->number);
+
+	IOMMU_DBG("  device          = %02x\n",
+		  PCI_SLOT(pdev->devfn));
+
+	IOMMU_DBG("  function        = %x\n",
+		  PCI_FUNC(pdev->devfn));
+
+	IOMMU_DBG("  vendor          = %04x\n",
+		  vendor);
+
+	IOMMU_DBG("  device          = %04x\n",
+		  device);
+
+	IOMMU_DBG("  command         = %04x\n",
+		  command);
+
+	IOMMU_DBG("  status          = %04x\n",
+		  status);
+
+	IOMMU_DBG("  dma_mask        = %llx\n",
+		  (unsigned long long)pdev->dma_mask);
+
+	IOMMU_DBG("  coherent_dma    = %llx\n",
+		  (unsigned long long)pdev->dev.coherent_dma_mask);
+}
+
+/* ------------------------------------------------------------ */
+/* Dump buffer                                                    */
+/* ------------------------------------------------------------ */
+
+static void dump_buffer(unsigned char *buf, unsigned int size)
+{
+	unsigned int i;
+	unsigned int count;
+
+	count = size;
+
+	if (count > 64)
+		count = 64;
+
+	for (i = 0; i < count; i++) {
+
+		if ((i % 16) == 0)
+			IOMMU_DBG("  [%04x] ", i);
+
+		pr_cont("%02x ", buf[i]);
+
+		if ((i % 16) == 15)
+			pr_cont("\n");
+	}
+
+	if ((count % 16) != 0)
+		pr_cont("\n");
+
+	if (size > count)
+		IOMMU_DBG("  ... %u bytes omitted\n",
+			  size - count);
+}
+
+/* ------------------------------------------------------------ */
+/* One DMA mapping                                               */
+/* ------------------------------------------------------------ */
+
+static int test_dma_mapping(enum dma_data_direction direction,
+			    unsigned int size,
+			    unsigned char pattern,
+			    const char *name)
 {
 	void *cpu_addr;
 	dma_addr_t dma_addr;
-	unsigned int i;
 
-	pr_info("IOMMU-DBG: ========================================\n");
-	pr_info("IOMMU-DBG: starting DMA/IOMMU test\n");
-
-	if (!test_pdev) {
-		pr_err("IOMMU-DBG: PCI device is not available\n");
-		return -ENODEV;
-	}
-
-	pr_info("IOMMU-DBG: PCI device = %s\n",
-		pci_name(test_pdev));
-
-	pr_info("IOMMU-DBG: vendor   = 0x%04x\n",
-		test_pdev->vendor);
-
-	pr_info("IOMMU-DBG: device   = 0x%04x\n",
-		test_pdev->device);
-
-	pr_info("IOMMU-DBG: allocating %d bytes\n",
-		TEST_SIZE);
-
+	IOMMU_DBG("----------------------------------------\n");
+	IOMMU_DBG("DMA TEST: %s\n", name);
+	IOMMU_DBG("direction = %d\n", direction);
+	IOMMU_DBG("size      = %u\n", size);
+	IOMMU_DBG("pattern   = 0x%02x\n", pattern);
 
 	/*
 	 * Allocate ordinary kernel memory.
 	 */
-	cpu_addr = kmalloc(TEST_SIZE, GFP_KERNEL);
+	cpu_addr = kmalloc(size, GFP_KERNEL);
 
 	if (!cpu_addr) {
-		pr_err("IOMMU-DBG: kmalloc failed\n");
+		IOMMU_ERR("kmalloc(%u) failed\n", size);
 		return -ENOMEM;
 	}
 
+	memset(cpu_addr, pattern, size);
+
+	IOMMU_DBG("CPU virtual address = %p\n",
+		  cpu_addr);
+
+	IOMMU_DBG("buffer before mapping:\n");
+	dump_buffer(cpu_addr, size);
+
 	/*
-	 * Put a recognizable pattern into the buffer.
-	 */
-	memset(cpu_addr, 0x5a, TEST_SIZE);
-
-	pr_info("IOMMU-DBG: CPU virtual address = %p\n",
-		cpu_addr);
-
-
-	/*
-	 * --------------------------------------------------------
-	 * DMA MAP
-	 * --------------------------------------------------------
+	 * This is the important transition:
 	 *
-	 * This is where the interesting IOMMU work begins.
+	 * CPU virtual address
+	 *        |
+	 *        v
+	 * dma_map_single()
+	 *        |
+	 *        v
+	 * DMA/IOMMU address
 	 */
-	pr_info("IOMMU-DBG: calling dma_map_single()\n");
+	IOMMU_DBG("calling dma_map_single()\n");
 
 	dma_addr = dma_map_single(&test_pdev->dev,
 				  cpu_addr,
-				  TEST_SIZE,
-				  DMA_BIDIRECTIONAL);
+				  size,
+				  direction);
 
 	if (dma_mapping_error(&test_pdev->dev, dma_addr)) {
-		pr_err("IOMMU-DBG: dma_map_single FAILED\n");
+
+		IOMMU_ERR("dma_map_single FAILED\n");
 
 		kfree(cpu_addr);
+
 		return -EIO;
 	}
 
-	pr_info("IOMMU-DBG: dma_map_single SUCCESS\n");
+	IOMMU_DBG("dma_map_single SUCCESS\n");
 
-	pr_info("IOMMU-DBG: DMA address = %pad\n",
-		&dma_addr);
+	IOMMU_DBG("DMA address = %llx\n",
+		  (unsigned long long)dma_addr);
 
-	pr_info("IOMMU-DBG: DMA size    = %d\n",
-		TEST_SIZE);
-
+	IOMMU_DBG("DMA size    = %u\n", size);
 
 	/*
-	 * Dump some data so that we know this is a real buffer.
+	 * Synchronize CPU -> device.
 	 */
-	pr_info("IOMMU-DBG: buffer contents:\n");
-
-	for (i = 0; i < 32; i++)
-		pr_info("IOMMU-DBG: [%02u] = 0x%02x\n",
-			i,
-			((unsigned char *)cpu_addr)[i]);
-
-
-	/*
-	 * --------------------------------------------------------
-	 * SYNC FOR DEVICE
-	 * --------------------------------------------------------
-	 *
-	 * This exercises another part of the DMA API.
-	 */
-	pr_info("IOMMU-DBG: dma_sync_single_for_device()\n");
+	IOMMU_DBG("dma_sync_single_for_device()\n");
 
 	dma_sync_single_for_device(&test_pdev->dev,
 				   dma_addr,
-				   TEST_SIZE,
-				   DMA_BIDIRECTIONAL);
+				   size,
+				   direction);
 
-
-	/*
-	 * Normally the actual hardware would now perform DMA using
-	 * dma_addr.
-	 *
-	 * We are not programming the emulated NIC's DMA engine yet.
-	 *
-	 * The important thing for this first experiment is that the
-	 * Linux IOMMU mapping was established.
-	 */
-
+	IOMMU_DBG("device synchronization COMPLETE\n");
 
 	/*
-	 * --------------------------------------------------------
-	 * SYNC FOR CPU
-	 * --------------------------------------------------------
+	 * Synchronize device -> CPU.
 	 */
-
-	pr_info("IOMMU-DBG: dma_sync_single_for_cpu()\n");
+	IOMMU_DBG("dma_sync_single_for_cpu()\n");
 
 	dma_sync_single_for_cpu(&test_pdev->dev,
 				dma_addr,
-				TEST_SIZE,
-				DMA_BIDIRECTIONAL);
+				size,
+				direction);
 
+	IOMMU_DBG("CPU synchronization COMPLETE\n");
 
 	/*
-	 * --------------------------------------------------------
-	 * UNMAP
-	 * --------------------------------------------------------
+	 * Unmap.
 	 *
-	 * This should tear down the DMA mapping.
+	 * This is particularly interesting for the IOMMU because
+	 * the Intel IOMMU implementation may have to invalidate
+	 * cached translations.
 	 */
-	pr_info("IOMMU-DBG: calling dma_unmap_single()\n");
+	IOMMU_DBG("calling dma_unmap_single()\n");
 
 	dma_unmap_single(&test_pdev->dev,
 			 dma_addr,
-			 TEST_SIZE,
-			 DMA_BIDIRECTIONAL);
+			 size,
+			 direction);
 
-	pr_info("IOMMU-DBG: dma_unmap_single COMPLETE\n");
-
+	IOMMU_DBG("dma_unmap_single COMPLETE\n");
 
 	kfree(cpu_addr);
 
-	pr_info("IOMMU-DBG: DMA/IOMMU test complete\n");
-	pr_info("IOMMU-DBG: ========================================\n");
+	IOMMU_DBG("DMA TEST COMPLETE: %s\n", name);
+	IOMMU_DBG("----------------------------------------\n");
 
 	return 0;
 }
 
+/* ------------------------------------------------------------ */
+/* Repeated mapping                                              */
+/* ------------------------------------------------------------ */
 
-/*
- * ------------------------------------------------------------
- * DEBUGFS
- * ------------------------------------------------------------
- */
+static int test_repeated_mapping(void)
+{
+	void *cpu_addr;
+	dma_addr_t dma_addr;
+	int i;
 
-static ssize_t iommu_debugger_read(struct file *file,
-				   char __user *buf,
-				   size_t count,
-				   loff_t *ppos)
+	IOMMU_DBG("========================================\n");
+	IOMMU_DBG("REPEATED DMA MAP/UNMAP TEST\n");
+	IOMMU_DBG("========================================\n");
+
+	cpu_addr = kmalloc(TEST_BUF_SIZE, GFP_KERNEL);
+
+	if (!cpu_addr) {
+		IOMMU_ERR("kmalloc failed\n");
+		return -ENOMEM;
+	}
+
+	memset(cpu_addr, 0xa5, TEST_BUF_SIZE);
+
+	for (i = 0; i < NUM_REPEATS; i++) {
+
+		IOMMU_DBG("REPEAT %d/%d\n",
+			  i + 1,
+			  NUM_REPEATS);
+
+		IOMMU_DBG("mapping buffer\n");
+
+		dma_addr = dma_map_single(&test_pdev->dev,
+					  cpu_addr,
+					  TEST_BUF_SIZE,
+					  DMA_BIDIRECTIONAL);
+
+		if (dma_mapping_error(&test_pdev->dev,
+				      dma_addr)) {
+
+			IOMMU_ERR("mapping failed at iteration %d\n",
+				  i);
+
+			kfree(cpu_addr);
+
+			return -EIO;
+		}
+
+		IOMMU_DBG("IOVA/DMA address = %llx\n",
+			  (unsigned long long)dma_addr);
+
+		IOMMU_DBG("sync for device\n");
+
+		dma_sync_single_for_device(&test_pdev->dev,
+					   dma_addr,
+					   TEST_BUF_SIZE,
+					   DMA_BIDIRECTIONAL);
+
+		IOMMU_DBG("sync for CPU\n");
+
+		dma_sync_single_for_cpu(&test_pdev->dev,
+					dma_addr,
+					TEST_BUF_SIZE,
+					DMA_BIDIRECTIONAL);
+
+		IOMMU_DBG("unmapping\n");
+
+		dma_unmap_single(&test_pdev->dev,
+				 dma_addr,
+				 TEST_BUF_SIZE,
+				 DMA_BIDIRECTIONAL);
+
+		IOMMU_DBG("iteration %d COMPLETE\n",
+			  i + 1);
+	}
+
+	kfree(cpu_addr);
+
+	IOMMU_DBG("REPEATED TEST COMPLETE\n");
+
+	return 0;
+}
+
+/* ------------------------------------------------------------ */
+/* Main IOMMU test                                               */
+/* ------------------------------------------------------------ */
+
+static int run_iommu_test(void)
+{
+	int ret;
+
+	if (!test_pdev) {
+		IOMMU_ERR("no PCI device\n");
+		return -ENODEV;
+	}
+
+	IOMMU_DBG("========================================\n");
+	IOMMU_DBG("STARTING IOMMU/DMA TEST\n");
+	IOMMU_DBG("========================================\n");
+
+	dump_pci_info(test_pdev);
+
+	/*
+	 * Test 1
+	 */
+	ret = test_dma_mapping(DMA_TO_DEVICE,
+			       4096,
+			       0x5a,
+			       "DMA_TO_DEVICE");
+
+	if (ret)
+		return ret;
+
+	/*
+	 * Test 2
+	 */
+	ret = test_dma_mapping(DMA_FROM_DEVICE,
+			       4096,
+			       0xa5,
+			       "DMA_FROM_DEVICE");
+
+	if (ret)
+		return ret;
+
+	/*
+	 * Test 3
+	 */
+	ret = test_dma_mapping(DMA_BIDIRECTIONAL,
+			       4096,
+			       0xcc,
+			       "DMA_BIDIRECTIONAL");
+
+	if (ret)
+		return ret;
+
+	/*
+	 * Test 4: different sizes.
+	 */
+	ret = test_dma_mapping(DMA_BIDIRECTIONAL,
+			       64,
+			       0x11,
+			       "64 BYTE");
+
+	if (ret)
+		return ret;
+
+	ret = test_dma_mapping(DMA_BIDIRECTIONAL,
+			       4096,
+			       0x22,
+			       "4 KB");
+
+	if (ret)
+		return ret;
+
+	ret = test_dma_mapping(DMA_BIDIRECTIONAL,
+			       16384,
+			       0x33,
+			       "16 KB");
+
+	if (ret)
+		return ret;
+
+	/*
+	 * Test 5: repeated mapping.
+	 */
+	ret = test_repeated_mapping();
+
+	if (ret)
+		return ret;
+
+	IOMMU_DBG("========================================\n");
+	IOMMU_DBG("IOMMU/DMA TEST COMPLETE\n");
+	IOMMU_DBG("========================================\n");
+
+	return 0;
+}
+
+/* ------------------------------------------------------------ */
+/* debugfs control                                               */
+/* ------------------------------------------------------------ */
+
+static ssize_t control_read(struct file *file,
+			    char __user *buf,
+			    size_t count,
+			    loff_t *ppos)
 {
 	char tmp[128];
 	int len;
 
 	len = snprintf(tmp,
 		       sizeof(tmp),
-		       "IOMMU debugger\n"
-		       "PCI device: %s\n"
-		       "Write 1 to run DMA/IOMMU test\n",
-		       test_pdev ? pci_name(test_pdev) : "not found");
+		       "IOMMU debugger: %s\n",
+		       debug_enabled ? "enabled" : "disabled");
 
 	return simple_read_from_buffer(buf,
 				       count,
@@ -255,151 +462,123 @@ static ssize_t iommu_debugger_read(struct file *file,
 				       len);
 }
 
-
-static ssize_t iommu_debugger_write(struct file *file,
-				    const char __user *buf,
-				    size_t count,
-				    loff_t *ppos)
+static ssize_t control_write(struct file *file,
+			     const char __user *buf,
+			     size_t count,
+			     loff_t *ppos)
 {
-	char kbuf[16];
-	unsigned long value;
+	char tmp[32];
+	long value;
 
-	if (count >= sizeof(kbuf))
+	if (count >= sizeof(tmp))
 		return -EINVAL;
 
-	if (copy_from_user(kbuf, buf, count))
+	if (copy_from_user(tmp, buf, count))
 		return -EFAULT;
 
-	kbuf[count] = '\0';
+	tmp[count] = '\0';
 
-	if (strict_strtoul(kbuf, 0, &value))
+	if (kstrtol(tmp, 10, &value))
 		return -EINVAL;
 
 	if (value == 1) {
-		pr_info("IOMMU-DBG: test requested\n");
 
-		iommu_run_dma_test();
+		debug_enabled = 1;
+
+		pr_info("IOMMU-DBG: debugging ENABLED\n");
+
+		/*
+		 * Run the actual test from the kernel module.
+		 */
+		run_iommu_test();
+
+	} else if (value == 0) {
+
+		debug_enabled = 0;
+
+		pr_info("IOMMU-DBG: debugging DISABLED\n");
+
 	} else {
-		pr_info("IOMMU-DBG: write 1 to run test\n");
+
+		return -EINVAL;
 	}
 
 	return count;
 }
 
-
-static const struct file_operations iommu_debugger_fops = {
+static const struct file_operations control_fops = {
 	.owner = THIS_MODULE,
-	.read = iommu_debugger_read,
-	.write = iommu_debugger_write,
+	.read = control_read,
+	.write = control_write,
 };
 
-
-/*
- * ------------------------------------------------------------
- * INIT
- * ------------------------------------------------------------
- */
+/* ------------------------------------------------------------ */
+/* Module initialization                                         */
+/* ------------------------------------------------------------ */
 
 static int __init iommu_debugger_init(void)
 {
-	int ret;
-
-	pr_info("IOMMU-DBG: initializing\n");
-
+	IOMMU_DBG("initializing\n");
 
 	/*
-	 * Find the actual QEMU PCI device:
+	 * Find QEMU e1000:
 	 *
-	 * 0000:00:02.0
+	 * 00:02.0
+	 * 8086:100e
 	 */
-	test_pdev = pci_get_domain_bus_and_slot(
-			0,
-			TEST_PCI_BUS,
-			PCI_DEVFN(TEST_PCI_SLOT,
-				  TEST_PCI_FUNCTION));
+	test_pdev = pci_get_device(TEST_VENDOR,
+				   TEST_DEVICE,
+				   NULL);
 
 	if (!test_pdev) {
-		pr_err("IOMMU-DBG: PCI device 0000:%02x:%02x.%d "
-		       "not found\n",
-		       TEST_PCI_BUS,
-		       TEST_PCI_SLOT,
-		       TEST_PCI_FUNCTION);
+
+		pr_err("IOMMU-DBG: PCI device %04x:%04x not found\n",
+		       TEST_VENDOR,
+		       TEST_DEVICE);
 
 		return -ENODEV;
 	}
 
-
-	pr_info("IOMMU-DBG: found PCI device %s\n",
-		pci_name(test_pdev));
-
-	pr_info("IOMMU-DBG: vendor=0x%04x device=0x%04x\n",
+	pr_info("IOMMU-DBG: found PCI device %04x:%04x\n",
 		test_pdev->vendor,
 		test_pdev->device);
 
+	pr_info("IOMMU-DBG: PCI address %02x:%02x.%x\n",
+		test_pdev->bus->number,
+		PCI_SLOT(test_pdev->devfn),
+		PCI_FUNC(test_pdev->devfn));
 
 	/*
-	 * Verify that this is the device we expect.
-	 */
-	if (test_pdev->vendor != TEST_VENDOR_ID ||
-	    test_pdev->device != TEST_DEVICE_ID) {
-
-		pr_err("IOMMU-DBG: unexpected PCI device\n");
-
-		pr_err("IOMMU-DBG: expected %04x:%04x\n",
-		       TEST_VENDOR_ID,
-		       TEST_DEVICE_ID);
-
-		pr_err("IOMMU-DBG: found %04x:%04x\n",
-		       test_pdev->vendor,
-		       test_pdev->device);
-
-		pci_dev_put(test_pdev);
-		test_pdev = NULL;
-
-		return -ENODEV;
-	}
-
-
-	/*
-	 * Create:
+	 * Don't claim the e1000 device.
 	 *
-	 * /sys/kernel/debug/iommu_debugger
+	 * We only use it as the DMA/IOMMU device whose DMA
+	 * address space is managed by the IOMMU.
 	 */
-	debugfs_dir = debugfs_create_dir(DRIVER_NAME, NULL);
 
-	if (!debugfs_dir) {
-		pr_err("IOMMU-DBG: failed to create debugfs directory\n");
+	debug_dir = debugfs_create_dir("iommu_debugger",
+				       NULL);
+
+	if (!debug_dir) {
 
 		pci_dev_put(test_pdev);
-		test_pdev = NULL;
 
 		return -ENOMEM;
 	}
 
+	debug_control = debugfs_create_file("control",
+					    0644,
+					    debug_dir,
+					    NULL,
+					    &control_fops);
 
-	/*
-	 * Create:
-	 *
-	 * /sys/kernel/debug/iommu_debugger/control
-	 */
-	debugfs_control =
-		debugfs_create_file("control",
-				    0644,
-				    debugfs_dir,
-				    NULL,
-				    &iommu_debugger_fops);
+	if (!debug_control) {
 
-	if (!debugfs_control) {
-		pr_err("IOMMU-DBG: failed to create control file\n");
-
-		debugfs_remove(debugfs_dir);
+		debugfs_remove(debug_dir);
 
 		pci_dev_put(test_pdev);
-		test_pdev = NULL;
 
 		return -ENOMEM;
 	}
-
 
 	pr_info("IOMMU-DBG: debugfs ready\n");
 	pr_info("IOMMU-DBG: write 1 to control to run test\n");
@@ -407,32 +586,29 @@ static int __init iommu_debugger_init(void)
 	return 0;
 }
 
-
-/*
- * ------------------------------------------------------------
- * EXIT
- * ------------------------------------------------------------
- */
+/* ------------------------------------------------------------ */
+/* Module cleanup                                                */
+/* ------------------------------------------------------------ */
 
 static void __exit iommu_debugger_exit(void)
 {
 	pr_info("IOMMU-DBG: unloading\n");
 
-	debugfs_remove(debugfs_control);
-	debugfs_remove(debugfs_dir);
+	if (debug_control)
+		debugfs_remove(debug_control);
 
-	if (test_pdev) {
+	if (debug_dir)
+		debugfs_remove(debug_dir);
+
+	if (test_pdev)
 		pci_dev_put(test_pdev);
-		test_pdev = NULL;
-	}
 
 	pr_info("IOMMU-DBG: unloaded\n");
 }
-
 
 module_init(iommu_debugger_init);
 module_exit(iommu_debugger_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Sagar");
+MODULE_AUTHOR("IOMMU Lab");
 MODULE_DESCRIPTION("Linux 2.6.39 Intel IOMMU DMA debugger");

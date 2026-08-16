@@ -130,6 +130,91 @@ run_qemu() {
       # -gdb tcp::1238 
 
 }
+run_qemu_iommu() {
+    echo "--> Launching QEMU..."
+    cd "$KERNEL_DIR"
+
+    qemu-system-i386 \
+        -machine pc-q35-8.2 \
+        -cpu core2duo \
+        -m 256 \
+        -kernel arch/x86/boot/bzImage \
+        -initrd "$INITRD_IMG" \
+        -drive file=../disk.img,format=raw \
+        -drive file=../swap.img,format=raw \
+        \
+        -device intel-iommu,intremap=on \
+        -device e1000,netdev=n0 \
+        -netdev user,id=n0 \
+        \
+        -append "console=ttyS0 \
+                 root=/dev/ram0 \
+                 intel_iommu=on \
+                 no_console_suspend \
+                 debug \
+                 ignore_loglevel \
+                 loglevel=8 \
+                 earlyprintk=ttyS0,115200 \
+                 initcall_debug" \
+        \
+        -nographic \
+        -serial stdio \
+        -monitor telnet:127.0.0.1:1235,server,nowait
+}
+
+run_qemu_iommu_old() {
+        echo "--> Launching QEMU..."
+    cd "$KERNEL_DIR"
+    qemu-system-i386 \
+    -machine pc-q35-8.2 \
+    -cpu core2duo \
+    -kernel arch/x86/boot/bzImage \
+    -initrd "$INITRD_IMG" \
+    -drive file=../disk.img,format=raw \
+    -drive file=../swap.img,format=raw \
+    -device e1000,netdev=n0 \
+    -netdev user,id=n0 \
+    -device intel-iommu \
+    -append "console=ttyS0 \
+             root=/dev/ram0 \
+             intel_iommu=on \
+             no_console_suspend \
+             debug \
+             ignore_loglevel \
+             loglevel=8 \
+             earlyprintk=ttyS0,115200 \
+             initcall_debug" \
+    -nographic \
+    -serial stdio \
+    -monitor telnet:127.0.0.1:1235,server,nowait \
+    -m 256
+
+}
+
+run_qemu_iommu_0() {
+        echo "--> Launching QEMU..."
+    cd "$KERNEL_DIR"
+qemu-system-i386 \
+    -machine pc-q35-8.2 \
+    -kernel arch/x86/boot/bzImage \
+    -initrd "$INITRD_IMG" \
+    -drive file=../disk.img,format=raw \
+    -drive file=../swap.img,format=raw \
+    -device e1000,netdev=n0 \
+    -netdev user,id=n0 \
+    -device intel-iommu,intremap=off \
+    -append "console=ttyS0 root=/dev/ram0 \
+             intel_iommu=on \
+             iommu=pt \
+             no_console_suspend \
+             debug ignore_loglevel loglevel=8 \
+             earlyprintk=ttyS0,115200 \
+             initcall_debug" \
+    -nographic \
+    -serial stdio \
+    -monitor telnet:127.0.0.1:1235,server,nowait \
+    -m 256
+}
 
 i__2run_qemu() {
     echo "--> Launching QEMU..."
@@ -173,7 +258,7 @@ while true; do
             pack_initrd
             ;;
         4)
-            run_qemu
+            run_qemu_iommu
             exit 0
             ;;
         5)
