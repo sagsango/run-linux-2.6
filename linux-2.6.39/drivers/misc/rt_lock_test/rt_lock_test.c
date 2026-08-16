@@ -99,7 +99,7 @@ static atomic_t simulation_started = ATOMIC_INIT(0);
  */
 static int rt_test_priority(int id)
 {
-        return 10 + id * 10;
+        return 10 + id * 2;
 }
 
 
@@ -120,8 +120,15 @@ static void rt_test_set_priority(int id)
          */
         sched_setscheduler(current, SCHED_FIFO, &param);
 
-        pr_info("rt_lock_test: T%d priority=%d\n",
-                id, param.sched_priority);
+
+        pr_info("rt_lock_test set: T%d priority=%d, "
+		"pid[%d] prio[%d, %d, %d]\n",
+                id, param.sched_priority,
+		current->pid,
+		current->prio,
+		current->static_prio,
+		current->normal_prio);
+
 }
 
 
