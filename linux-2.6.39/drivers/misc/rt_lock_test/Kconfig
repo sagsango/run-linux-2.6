@@ -1,0 +1,13 @@
+config RT_LOCK_TEST
+	tristate "RT mutex PI/deadlock test"
+	depends on DEBUG_FS
+	depends on RT_MUTEXES
+	help
+	  Creates 16 kernel threads and 16 RT mutexes.
+
+	  Each thread acquires one mutex and then attempts
+	  to acquire the next mutex, creating a circular
+	  dependency.
+
+	  This is intended for RT mutex, priority inheritance,
+	  and lock dependency debugging experiments.
