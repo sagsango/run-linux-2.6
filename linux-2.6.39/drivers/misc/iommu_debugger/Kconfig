@@ -1,0 +1,6 @@
+config IOMMU_DEBUGGER
+	tristate "IOMMU debugger"
+	depends on DMAR
+	depends on DEBUG_FS
+	help
+	  Debugging interface for Intel IOMMU experiments.

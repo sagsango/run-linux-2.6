@@ -46,3 +46,4 @@ obj-$(CONFIG_AB8500_PWM)	+= ab8500-pwm.o
 obj-y				+= lis3lv02d/
 obj-$(CONFIG_MEM_DEBUGGER) += mem_debugger/ 
 obj-$(CONFIG_RT_LOCK_TEST) += rt_lock_test/
+obj-$(CONFIG_IOMMU_DEBUGGER) += iommu_debugger/

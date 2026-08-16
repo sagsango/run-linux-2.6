@@ -483,5 +483,6 @@ source "drivers/misc/ti-st/Kconfig"
 source "drivers/misc/lis3lv02d/Kconfig"
 source "drivers/misc/mem_debugger/Kconfig"
 source "drivers/misc/rt_lock_test/Kconfig"
+source "drivers/misc/iommu_debugger/Kconfig"
 
 endif # MISC_DEVICES
