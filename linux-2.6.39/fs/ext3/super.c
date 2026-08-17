@@ -2518,6 +2518,7 @@ static int ext3_sync_fs(struct super_block *sb, int wait)
  */
 static int ext3_freeze(struct super_block *sb)
 {
+	dump_stack();
 	int error = 0;
 	journal_t *journal;
 
