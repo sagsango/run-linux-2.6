@@ -9,7 +9,7 @@
 #
 # Normal rules
 #
-.*
+#.*
 *.o
 *.o.*
 *.a
@@ -32,7 +32,8 @@ modules.builtin
 *.lzo
 *.patch
 *.gcno
-
+*.cmd
+.tmp_*
 #
 # Top-level generic files
 #

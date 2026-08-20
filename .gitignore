@@ -37,3 +37,6 @@ initrd_busybox.img
 /busybox-1.35.0/_install/
 /busybox-1.35.0/busybox_unstripped
 
+!**/.*config
+!**/.config
+*.cmd
