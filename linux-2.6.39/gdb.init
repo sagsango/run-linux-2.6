@@ -1,0 +1,19 @@
+set pagination off
+set logging file gdb.out
+set logging overwrite on
+set logging enabled on
+
+target remote :1234
+
+break /home/ss/run-linux-2.6/linux-2.6.39/kernel/irq/autoprobe.c
+break /home/ss/run-linux-2.6/linux-2.6.39/kernel/irq/chip.c
+break /home/ss/run-linux-2.6/linux-2.6.39/kernel/irq/devres.c
+break /home/ss/run-linux-2.6/linux-2.6.39/kernel/irq/dummychip.c
+break /home/ss/run-linux-2.6/linux-2.6.39/kernel/irq/handle.c
+break /home/ss/run-linux-2.6/linux-2.6.39/kernel/irq/irqdesc.c
+break /home/ss/run-linux-2.6/linux-2.6.39/kernel/irq/manage.c
+break /home/ss/run-linux-2.6/linux-2.6.39/kernel/irq/migration.c
+break /home/ss/run-linux-2.6/linux-2.6.39/kernel/irq/pm.c
+break /home/ss/run-linux-2.6.39/linux-2.6.39/kernel/irq/proc.c
+break /home/ss/run-linux-2.6.39/linux-2.6.39/kernel/irq/resend.c
+break /home/ss/run-linux-2.6.39/linux-2.6.39/kernel/irq/spurious.c
