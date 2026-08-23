@@ -123,7 +123,7 @@ while true; do
             ;;
         2)
             echo "--> Compiling Kernel changes..."
-            cd "$KERNEL_DIR" && make ARCH=i386 -j$(nproc)
+            cd "$KERNEL_DIR" && make ARCH=i386 INSTALL_MOD_PATH="$ROOTFS_DIR" modules_install
             ;;
         3)
             pack_initrd

@@ -1,0 +1,7 @@
+config RCU_EXPERIMENT
+	tristate "Linux 2.6.39 RCU Subsystem Experimental Module"
+	default m
+	help
+	  This option enables a multi-threaded testing environment for
+	  evaluating synchronous and asynchronous RCU primitives.
+
