@@ -37,6 +37,9 @@ void refrigerator(void)
 		task_unlock(current);
 		return;
 	}
+	/* XXX: here we freeze the processes
+	 * 	TODO: print the pid and experiment
+	 */
 	save = current->state;
 	pr_debug("%s entered refrigerator\n", current->comm);
 

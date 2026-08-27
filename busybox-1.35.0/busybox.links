@@ -75,6 +75,7 @@
 /usr/bin/sha3sum
 /usr/bin/sha256sum
 /usr/bin/sha512sum
+/usr/bin/mem_debugger
 /bin/mkdir
 /usr/bin/mkfifo
 /bin/mknod

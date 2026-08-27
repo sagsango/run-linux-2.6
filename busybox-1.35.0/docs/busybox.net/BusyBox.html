@@ -82,33 +82,33 @@
         killall5, klogd, last, less, link, linux32, linux64, linuxrc, ln,
         loadfont, loadkmap, logger, login, logname, logread, losetup, lpd,
         lpq, lpr, ls, lsattr, lsmod, lsof, lspci, lsscsi, lsusb, lzcat,
-        lzma, lzop, makedevs, makemime, man, md5sum, mdev, mesg, microcom,
-        mim, mkdir, mkdosfs, mke2fs, mkfifo, mkfs.ext2, mkfs.minix,
-        mkfs.vfat, mknod, mkpasswd, mkswap, mktemp, modinfo, modprobe, more,
-        mount, mountpoint, mpstat, mt, mv, nameif, nanddump, nandwrite,
-        nbd-client, nc, netstat, nice, nl, nmeter, nohup, nologin, nproc,
-        nsenter, nslookup, ntpd, od, openvt, partprobe, passwd, paste,
-        patch, pgrep, pidof, ping, ping6, pipe_progress, pivot_root, pkill,
-        pmap, popmaildir, poweroff, powertop, printenv, printf, ps, pscan,
-        pstree, pwd, pwdx, raidautorun, rdate, rdev, readahead, readlink,
-        readprofile, realpath, reboot, reformime, remove-shell, renice,
-        reset, resize, resume, rev, rm, rmdir, rmmod, route, rpm, rpm2cpio,
-        rtcwake, run-init, run-parts, runlevel, runsv, runsvdir, rx, script,
-        scriptreplay, sed, sendmail, seq, setarch, setconsole, setfattr,
-        setfont, setkeycodes, setlogcons, setpriv, setserial, setsid,
-        setuidgid, sh, sha1sum, sha256sum, sha3sum, sha512sum, showkey,
-        shred, shuf, slattach, sleep, smemcap, softlimit, sort, split,
-        ssl_client, start-stop-daemon, stat, strings, stty, su, sulogin,
-        sum, sv, svc, svlogd, svok, swapoff, swapon, switch_root, sync,
-        sysctl, syslogd, tac, tail, tar, taskset, tc, tcpsvd, tee, telnet,
-        telnetd, test, tftp, tftpd, time, timeout, top, touch, tr,
-        traceroute, traceroute6, true, truncate, ts, tty, ttysize, tunctl,
-        ubiattach, ubidetach, ubimkvol, ubirename, ubirmvol, ubirsvol,
-        ubiupdatevol, udhcpc, udhcpc6, udhcpd, udpsvd, uevent, umount,
-        uname, unexpand, uniq, unix2dos, unlink, unlzma, unshare, unxz,
-        unzip, uptime, users, usleep, uudecode, uuencode, vconfig, vi,
-        vlock, volname, w, wall, watch, watchdog, wc, wget, which, who,
-        whoami, whois, xargs, xxd, xz, xzcat, yes, zcat, zcip</code></pre>
+        lzma, lzop, makedevs, makemime, man, md5sum, mdev, mem_debugger,
+        mesg, microcom, mim, mkdir, mkdosfs, mke2fs, mkfifo, mkfs.ext2,
+        mkfs.minix, mkfs.vfat, mknod, mkpasswd, mkswap, mktemp, modinfo,
+        modprobe, more, mount, mountpoint, mpstat, mt, mv, nameif, nanddump,
+        nandwrite, nbd-client, nc, netstat, nice, nl, nmeter, nohup,
+        nologin, nproc, nsenter, nslookup, ntpd, od, openvt, partprobe,
+        passwd, paste, patch, pgrep, pidof, ping, ping6, pipe_progress,
+        pivot_root, pkill, pmap, popmaildir, poweroff, powertop, printenv,
+        printf, ps, pscan, pstree, pwd, pwdx, raidautorun, rdate, rdev,
+        readahead, readlink, readprofile, realpath, reboot, reformime,
+        remove-shell, renice, reset, resize, resume, rev, rm, rmdir, rmmod,
+        route, rpm, rpm2cpio, rtcwake, run-init, run-parts, runlevel, runsv,
+        runsvdir, rx, script, scriptreplay, sed, sendmail, seq, setarch,
+        setconsole, setfattr, setfont, setkeycodes, setlogcons, setpriv,
+        setserial, setsid, setuidgid, sh, sha1sum, sha256sum, sha3sum,
+        sha512sum, showkey, shred, shuf, slattach, sleep, smemcap,
+        softlimit, sort, split, ssl_client, start-stop-daemon, stat,
+        strings, stty, su, sulogin, sum, sv, svc, svlogd, svok, swapoff,
+        swapon, switch_root, sync, sysctl, syslogd, tac, tail, tar, taskset,
+        tc, tcpsvd, tee, telnet, telnetd, test, tftp, tftpd, time, timeout,
+        top, touch, tr, traceroute, traceroute6, true, truncate, ts, tty,
+        ttysize, tunctl, ubiattach, ubidetach, ubimkvol, ubirename,
+        ubirmvol, ubirsvol, ubiupdatevol, udhcpc, udhcpc6, udhcpd, udpsvd,
+        uevent, umount, uname, unexpand, uniq, unix2dos, unlink, unlzma,
+        unshare, unxz, unzip, uptime, users, usleep, uudecode, uuencode,
+        vconfig, vi, vlock, volname, w, wall, watch, watchdog, wc, wget,
+        which, who, whoami, whois, xargs, xxd, xz, xzcat, yes, zcat, zcip</code></pre>
 
 <h1 id="COMMAND-DESCRIPTIONS">COMMAND DESCRIPTIONS</h1>
 
@@ -2618,6 +2618,14 @@ Output format:
 <p>If /dev/mdev.seq file exists, mdev will wait for its value to match $SEQNUM variable. This prevents plug/unplug races. To activate this feature, create empty /dev/mdev.seq at boot.</p>
 
 <p>If /dev/mdev.log file exists, debug log will be appended to it.</p>
+
+</dd>
+<dt id="mem_debugger"><b>mem_debugger</b></dt>
+<dd>
+
+<p>mem_debugger</p>
+
+<p>Interactive memory debugging ioctl utility</p>
 
 </dd>
 <dt id="mesg"><b>mesg</b></dt>

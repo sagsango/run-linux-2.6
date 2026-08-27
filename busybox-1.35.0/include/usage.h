@@ -1282,6 +1282,12 @@
 	) \
      "\n	-a BITS	224 (default), 256, 384, 512" \
 
+#define mem_debugger_trivial_usage \
+       "" \
+
+#define mem_debugger_full_usage "\n\n" \
+       "Interactive memory debugging ioctl utility" \
+
 #define mkdir_trivial_usage \
        "[-m MODE] [-p] DIRECTORY..." \
 

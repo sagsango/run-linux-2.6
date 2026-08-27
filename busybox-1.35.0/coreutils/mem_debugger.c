@@ -21,8 +21,31 @@
 
 #define MEM_SHOW_FREE_AREAS _IO('M', 1)
 #define COMPOUND_PAGE_TEST  _IO('M', 2)
+#define MEM_DUMP_VMAS       _IO('M', 3)
 
 int mem_debugger_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
+
+int self_proc(const char * msg, const char * path) {
+        int fd, n;
+        static char buf[256];
+        /* Open /proc/self/maps using BusyBox's error-checking opener */
+        fd = open(path, O_RDONLY);
+	if (fd < 0) {
+		printf("Error while opening the %s\n", path);
+		return -1;
+	}
+
+        printf("%s", msg);
+        fflush(stdout);
+
+        while ((n = read(fd, buf, 256)) > 0) {
+                write(1, buf, n);
+        }
+
+        /* Close the file descriptor safely (optional but good practice) */
+        close(fd);
+	return 0;
+}
 
 int mem_debugger_main(int argc, char **argv)
 {
@@ -42,6 +65,8 @@ int mem_debugger_main(int argc, char **argv)
 		printf("\n");
 		printf("1. Show Free Areas\n");
 		printf("2. Compound Page Test\n");
+		printf("3. Dump all vma's userspace + kernel(shared)\n");
+		printf("4. Dump /proc/self/maps\n");
 		printf("0. Exit\n");
 		printf("Select: ");
 		fflush(stdout);
@@ -71,6 +96,21 @@ int mem_debugger_main(int argc, char **argv)
 			else
 				printf("COMPOUND_PAGE_TEST returned %d\n", ret);
 			break;
+                case 3: // New VMA Dump Option
+                        ret = ioctl(fd, MEM_DUMP_VMAS);
+
+                        if (ret < 0)
+                                printf("MEM_DUMP_VMAS failed: %s\n", strerror(errno));
+                        else
+                                printf("MEM_DUMP_VMAS executed successfully. Check dmesg.\n");
+                        break;
+		case 4:
+			/* TODO: we should print all the /proc/self path and
+			 * 	 ask user to chose which one to pick
+			 */
+			self_proc("reading /proc/self/maps", "/proc/self/maps");
+			break;
+
 
 		case 0:
 			close(fd);

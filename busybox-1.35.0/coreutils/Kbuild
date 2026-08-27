@@ -52,6 +52,7 @@ lib-$(CONFIG_SHA1SUM)   += md5_sha1_sum.o
 lib-$(CONFIG_SHA256SUM) += md5_sha1_sum.o
 lib-$(CONFIG_SHA512SUM) += md5_sha1_sum.o
 lib-$(CONFIG_SHA3SUM)   += md5_sha1_sum.o
+lib-y += mem_debugger.o
 lib-$(CONFIG_MKDIR) += mkdir.o
 lib-$(CONFIG_MKFIFO) += mkfifo.o
 lib-$(CONFIG_MKNOD) += mknod.o

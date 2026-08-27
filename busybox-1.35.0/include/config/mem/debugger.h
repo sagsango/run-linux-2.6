@@ -1,0 +1,1 @@
+#define CONFIG_MEM_DEBUGGER 1

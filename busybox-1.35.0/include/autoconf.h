@@ -2,7 +2,7 @@
  * Automatically generated C config: don't edit
  * Busybox version: 1.35.0
  */
-#define AUTOCONF_TIMESTAMP "2026-08-15 22:20:12 UTC"
+#define AUTOCONF_TIMESTAMP "2026-08-27 00:23:02 UTC"
 
 #define CONFIG_HAVE_DOT_CONFIG 1
 #define ENABLE_HAVE_DOT_CONFIG 1
@@ -1704,6 +1704,14 @@
 # define IF_FEATURE_MD5_SHA1_SUM_CHECK(...) __VA_ARGS__
 #endif
 #define IF_NOT_FEATURE_MD5_SHA1_SUM_CHECK(...)
+#define CONFIG_MEM_DEBUGGER 1
+#define ENABLE_MEM_DEBUGGER 1
+#ifdef MAKE_SUID
+# define IF_MEM_DEBUGGER(...) __VA_ARGS__ "CONFIG_MEM_DEBUGGER"
+#else
+# define IF_MEM_DEBUGGER(...) __VA_ARGS__
+#endif
+#define IF_NOT_MEM_DEBUGGER(...)
 #define CONFIG_MKDIR 1
 #define ENABLE_MKDIR 1
 #ifdef MAKE_SUID

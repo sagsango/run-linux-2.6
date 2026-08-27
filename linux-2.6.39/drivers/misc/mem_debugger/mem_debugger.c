@@ -12,11 +12,15 @@
 #include <linux/device.h>
 #include <linux/ioctl.h>
 #include <linux/mm.h>
+#include <linux/sched.h>
+#include <linux/vmalloc.h>
+#include <linux/rwlock.h>
 
 #define DEVICE_NAME "mem_debugger"
 
 #define MEM_SHOW_FREE_AREAS _IO('M', 1)
 #define COMPOUND_PAGE_TEST _IO('M', 2)
+#define MEM_DUMP_VMAS       _IO('M', 3)
 
 /* compound_page_test <begin> */
 #define TEST_ORDER 2
@@ -270,6 +274,45 @@ static void compound_page_test_exit(void)
 }
 
 
+// Declare the external vmlist variables if they are not exposed in vmalloc.h
+extern struct vm_struct *vmlist;
+extern rwlock_t vmlist_lock;
+
+static void dump_all_vmas(void)
+{
+    struct mm_struct *mm = current->mm;
+    struct vm_area_struct *vma;
+    struct vm_struct *vml;
+
+    printk(KERN_INFO "=== [mem_debugger] Dumping Userspace VMAs for PID %d (%s) ===\n",
+           current->pid, current->comm);
+
+    if (!mm) {
+        printk(KERN_INFO "No userspace mm context available (kernel thread?).\n");
+    } else {
+        // Protect mm structure reading
+        down_read(&mm->mmap_sem);
+        for (vma = mm->mmap; vma; vma = vma->vm_next) {
+            printk(KERN_INFO "  User VMA: 0x%08lx - 0x%08lx | Flags: 0x%08lx\n",
+                   vma->vm_start, vma->vm_end, vma->vm_flags);
+        }
+        up_read(&mm->mmap_sem);
+    }
+
+    printk(KERN_INFO "=== [mem_debugger] Dumping Kernel vmalloc Areas ===\n");
+
+    // Protect global kernel vmlist reading
+    read_lock(&vmlist_lock);
+    for (vml = vmlist; vml; vml = vml->next) {
+        printk(KERN_INFO "  Kernel VMalloc: 0x%p - 0x%p | Size: %lu bytes | Caller: %pS\n",
+               vml->addr, (void *)((unsigned long)vml->addr + vml->size),
+               vml->size, vml->caller);
+    }
+    read_unlock(&vmlist_lock);
+
+    printk(KERN_INFO "=== [mem_debugger] Dump Complete ===\n");
+}
+
 static long mem_debugger_ioctl(struct file *file,
                                unsigned int cmd,
                                unsigned long arg)
@@ -287,6 +330,10 @@ static long mem_debugger_ioctl(struct file *file,
     case COMPOUND_PAGE_TEST:
 	compound_page_test();
 	break;
+
+     case MEM_DUMP_VMAS:
+        dump_all_vmas();
+        break;
 
     default:
         return -EINVAL;

@@ -513,6 +513,9 @@ config FEATURE_MD5_SHA1_SUM_CHECK
 	Enabling the -c options allows files to be checked
 	against pre-calculated hash values.
 	-s and -w are useful options when verifying checksums.
+config MEM_DEBUGGER
+	bool "mem_debugger"
+	default y
 config MKDIR
 	bool "mkdir (4.5 kb)"
 	default y
