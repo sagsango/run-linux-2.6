@@ -88,6 +88,7 @@ pack_initrd() {
     echo "--> Packaging fresh initrd.img..."
     cd "$ROOTFS_DIR"
     find . -print0 | cpio --null -ov --format=newc 2>/dev/null | gzip -9 > "$INITRD_IMG"
+    find "$KERNEL_DIR" -name "*.ko" -exec cp {} "$ROOTFS_DIR"/lib/modules/ \;
     echo "--> Done! Image size: $(ls -lh $INITRD_IMG | awk '{print $5}')"
 }
 
@@ -123,6 +124,7 @@ while true; do
             ;;
         2)
             echo "--> Compiling Kernel changes..."
+	    cd "$KERNEL_DIR" && make ARCH=i386 -j$(nproc)
             cd "$KERNEL_DIR" && make ARCH=i386 INSTALL_MOD_PATH="$ROOTFS_DIR" modules_install
             ;;
         3)
