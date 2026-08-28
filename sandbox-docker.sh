@@ -46,7 +46,7 @@ RINIT
     # 5. Fix missing BusyBox configurations if cloned fresh (Updated for x86_64)
     if [ ! -f "$BUSYBOX_DIR/.config" ]; then
         echo "--> Reconfiguring BusyBox compiler for x86_64..."
-        cd "$BUSYBOX_DIR" && make distclean && make defconfig
+        cd "$BUSYBOX_DIR" && make distclean && make ARCH=x86_64defconfig
         sed -i 's/# CONFIG_STATIC is not set/CONFIG_STATIC=y/' .config
         # Cleaned out -m32 and i386 flags to compile as native 64-bit
         sed -i 's/CONFIG_EXTRA_CFLAGS=""/CONFIG_EXTRA_CFLAGS=""/' .config
@@ -100,7 +100,7 @@ run_qemu() {
     echo "--> Launching QEMU..."
     cd "$KERNEL_DIR"
     qemu-system-x86_64 \
-      -machine q35 \
+      -machine pc \
       -smp 4 \
       -kernel arch/x86/boot/bzImage \
       -initrd "$INITRD_IMG" \
@@ -130,7 +130,7 @@ while true; do
         1)
             # Updated to explicitly print 64-bit compilation target
             echo "--> Compiling 64-bit Static BusyBox..."
-            cd "$BUSYBOX_DIR" && make -j$(nproc) && make install
+            cd "$BUSYBOX_DIR" && make ARCH=x86_64 -j$(nproc) && make install
             cp -av "$BUSYBOX_DIR/_install/"* "$ROOTFS_DIR/"
             ;;
         2)
