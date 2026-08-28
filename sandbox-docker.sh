@@ -75,12 +75,13 @@ show_menu() {
     echo "=================================================="
     echo "0) First time setup (just after git clone)"
     echo "1) Rebuild & Install Userspace (BusyBox)"
-    echo "2) Recompile Kernel Only"
-    echo "3) Recreate initrd.img Only (Fast Pack)"
-    echo "4) Run QEMU Environment"
-    echo "5) Run Full Pipeline (Compile All + Pack + Boot)"
-    echo "6) Erase the last hybernation state on swap device"
-    echo "7) Exit Sandbox Script"
+    echo "2) make menufoncig"
+    echo "3) Recompile Kernel Only"
+    echo "4) Recreate initrd.img Only (Fast Pack)"
+    echo "5) Run QEMU Environment"
+    echo "6) Run Full Pipeline (Compile All + Pack + Boot)"
+    echo "7) Erase the last hybernation state on swap device"
+    echo "8) Exit Sandbox Script"
     echo "=================================================="
 }
 
@@ -100,13 +101,13 @@ run_qemu() {
       -initrd "$INITRD_IMG" \
       -hda ../disk.img \
       -hdb ../swap.img \
-      -append "console=ttyS0 root=/dev/ram0 resume=/dev/sdb no_console_suspend debug ignore_loglevel loglevel=8 earlyprintk=ttyS0,115200 initcall_debug" \
+      -append "console=ttyS0 root=/dev/ram0 resume=/dev/sdb no_console_suspend debug ignore_loglevel loglevel=8 earlyprintk=ttyS0,115200 initcall_debug root=/dev/sda1 console=ttyS0 init=/bin/sh" \
       -nographic \
       -serial stdio \
       -monitor telnet:127.0.0.1:1235,server,nowait \
-      -m 256
-#      -S \
-#      -gdb tcp::1234
+      -m 256 \
+      -S \
+      -gdb tcp::1234
 
 }
 
@@ -124,18 +125,21 @@ while true; do
             pack_initrd
             ;;
         2)
+            cd "$KERNEL_DIR" && make ARCH=i386 menuconfig
+            ;;
+        3)
             echo "--> Compiling Kernel changes..."
 	    cd "$KERNEL_DIR" && make ARCH=i386 -j$(nproc)
             cd "$KERNEL_DIR" && make ARCH=i386 INSTALL_MOD_PATH="$ROOTFS_DIR" modules_install
             ;;
-        3)
+        4)
             pack_initrd
             ;;
-        4)
+        5)
             run_qemu
             exit 0
             ;;
-        5)
+        6)
             echo "--> Running FULL Sandbox Compilation and Pack pipeline..."
             verify_and_build_structures
             cd "$BUSYBOX_DIR" && make -j$(nproc) && make install
@@ -145,11 +149,11 @@ while true; do
             run_qemu
             exit 0
             ;;
-	6)
+	7)
 	    echo '--> Erasing the last hybernation state...'
 	    dd if=/dev/zero of=swap.img bs=1M count=95
 	    ;;
-        7)
+        8)
             echo "Exiting script. Happy hacking!"
             exit 0
             ;;
