@@ -15,6 +15,9 @@
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
 #include <linux/rwlock.h>
+#include <linux/mmzone.h>
+#include <linux/nodemask.h>
+
 
 #define DEVICE_NAME "mem_debugger"
 
@@ -313,10 +316,189 @@ static void dump_all_vmas(void)
     printk(KERN_INFO "=== [mem_debugger] Dump Complete ===\n");
 }
 
+
+static void dump_zone(struct zone *zone, int nid, int zid)
+{
+	printk(KERN_INFO
+	       "    ----------------------------------------\n");
+
+	printk(KERN_INFO
+	       "    zone[%d]            : %s\n",
+	       zid, zone->name);
+
+	printk(KERN_INFO
+	       "    zone_start_pfn     : %lu\n",
+	       zone->zone_start_pfn);
+
+	printk(KERN_INFO
+	       "    spanned_pages      : %lu\n",
+	       zone->spanned_pages);
+
+	printk(KERN_INFO
+	       "    present_pages      : %lu\n",
+	       zone->present_pages);
+
+//	printk(KERN_INFO
+//	       "    managed_pages      : %lu\n",
+//	       zone->managed_pages);
+
+	printk(KERN_INFO
+	       "    free_pages         : %lu\n",
+	       zone_page_state(zone, NR_FREE_PAGES));
+
+//	printk(KERN_INFO
+//	       "    pages_min          : %lu\n",
+//	       zone->pages_min);
+
+//	printk(KERN_INFO
+//	       "    pages_low          : %lu\n",
+//	       zone->pages_low);
+
+//	printk(KERN_INFO
+//	       "    pages_high         : %lu\n",
+//	       zone->pages_high);
+
+	printk(KERN_INFO
+	       "    zone_pgdat         : %p\n",
+	       zone->zone_pgdat);
+
+	printk(KERN_INFO
+	       "    zone_pgdat->node_id: %d\n",
+	       zone->zone_pgdat->node_id);
+}
+
+
+static void dump_pgdat(pg_data_t *pgdat, int nid)
+{
+	int zid;
+
+	printk(KERN_INFO "\n");
+	printk(KERN_INFO "========================================\n");
+	printk(KERN_INFO "NODE %d\n", nid);
+	printk(KERN_INFO "========================================\n");
+
+	printk(KERN_INFO
+	       "  pgdat              : %p\n",
+	       pgdat);
+
+	printk(KERN_INFO
+	       "  pgdat->node_id     : %d\n",
+	       pgdat->node_id);
+
+	printk(KERN_INFO
+	       "  node_start_pfn     : %lu\n",
+	       pgdat->node_start_pfn);
+
+	printk(KERN_INFO
+	       "  node_present_pages : %lu\n",
+	       pgdat->node_present_pages);
+
+	printk(KERN_INFO
+	       "  node_spanned_pages : %lu\n",
+	       pgdat->node_spanned_pages);
+
+	/*
+	 * Traverse all possible zones belonging to this pgdat.
+	 */
+	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
+
+		struct zone *zone;
+
+		zone = &pgdat->node_zones[zid];
+
+		/*
+		 * This zone is not populated.
+		 */
+		if (zone->present_pages == 0)
+			continue;
+
+		dump_zone(zone, nid, zid);
+	}
+}
+
+static void traverse_nodes(void)
+{
+	int nid;
+	pg_data_t *pgdat;
+
+	printk(KERN_INFO "\n");
+	printk(KERN_INFO "========================================\n");
+	printk(KERN_INFO "       X86 NUMA NODE TRAVERSAL\n");
+	printk(KERN_INFO "========================================\n");
+
+
+	/*
+	 * Manually walk all possible NUMA node IDs.
+	 */
+	for (nid = 0; nid < MAX_NUMNODES; nid++) {
+
+		printk(KERN_INFO "\n");
+		printk(KERN_INFO
+		       "Checking node %d\n", nid);
+
+
+		/*
+		 * First determine whether this node is online.
+		 */
+		if (!node_online(nid)) {
+
+			printk(KERN_INFO
+			       "  Node %d: OFFLINE\n", nid);
+
+			continue;
+		}
+
+
+		/*
+		 * Obtain the pg_data_t belonging to this node.
+		 *
+		 * x86 NUMA:
+		 *
+		 *     nid
+		 *      |
+		 *      v
+		 *   NODE_DATA(nid)
+		 *      |
+		 *      v
+		 *   pg_data_t *
+		 */
+		pgdat = NODE_DATA(nid);
+
+
+		/*
+		 * Sanity check.
+		 */
+		if (pgdat == NULL) {
+
+			printk(KERN_INFO
+			       "  Node %d: ONLINE but pgdat == NULL\n",
+			       nid);
+
+			continue;
+		}
+
+
+		printk(KERN_INFO
+		       "  Node %d: ONLINE\n", nid);
+
+		printk(KERN_INFO
+		       "  NODE_DATA(%d) = %p\n",
+		       nid, pgdat);
+
+
+		/*
+		 * Dump the pg_data_t and all its zones.
+		 */
+		dump_pgdat(pgdat, nid);
+	}
+}
+
 static long mem_debugger_ioctl(struct file *file,
                                unsigned int cmd,
                                unsigned long arg)
 {
+
+    traverse_nodes();
     switch (cmd) {
 
     case MEM_SHOW_FREE_AREAS:

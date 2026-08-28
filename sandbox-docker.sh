@@ -103,10 +103,11 @@ run_qemu() {
       -append "console=ttyS0 root=/dev/ram0 resume=/dev/sdb no_console_suspend debug ignore_loglevel loglevel=8 earlyprintk=ttyS0,115200 initcall_debug" \
       -nographic \
       -serial stdio \
-      -S \
-      -gdb tcp::1234 \
       -monitor telnet:127.0.0.1:1235,server,nowait \
       -m 256
+#      -S \
+#      -gdb tcp::1234
+
 }
 
 while true; do
