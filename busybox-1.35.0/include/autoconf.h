@@ -2,7 +2,7 @@
  * Automatically generated C config: don't edit
  * Busybox version: 1.35.0
  */
-#define AUTOCONF_TIMESTAMP "2026-08-27 00:54:38 UTC"
+#define AUTOCONF_TIMESTAMP "2026-08-28 22:06:49 UTC"
 
 #define CONFIG_HAVE_DOT_CONFIG 1
 #define ENABLE_HAVE_DOT_CONFIG 1
@@ -264,7 +264,7 @@
 # define IF_SYSROOT(...) __VA_ARGS__
 #endif
 #define IF_NOT_SYSROOT(...)
-#define CONFIG_EXTRA_CFLAGS "-m32 -march=i386"
+#define CONFIG_EXTRA_CFLAGS ""
 #define ENABLE_EXTRA_CFLAGS 1
 #ifdef MAKE_SUID
 # define IF_EXTRA_CFLAGS(...) __VA_ARGS__ "CONFIG_EXTRA_CFLAGS"
@@ -272,7 +272,7 @@
 # define IF_EXTRA_CFLAGS(...) __VA_ARGS__
 #endif
 #define IF_NOT_EXTRA_CFLAGS(...)
-#define CONFIG_EXTRA_LDFLAGS "-m32"
+#define CONFIG_EXTRA_LDFLAGS ""
 #define ENABLE_EXTRA_LDFLAGS 1
 #ifdef MAKE_SUID
 # define IF_EXTRA_LDFLAGS(...) __VA_ARGS__ "CONFIG_EXTRA_LDFLAGS"

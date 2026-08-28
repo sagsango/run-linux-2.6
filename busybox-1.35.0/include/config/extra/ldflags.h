@@ -1,1 +1,1 @@
-#define CONFIG_EXTRA_LDFLAGS "-m32"
+#define CONFIG_EXTRA_LDFLAGS ""
