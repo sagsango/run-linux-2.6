@@ -105,7 +105,7 @@ run_qemu() {
       -nographic \
       -serial stdio \
       -monitor telnet:127.0.0.1:1235,server,nowait \
-      -m 256 \
+      -m 512 \
       -S \
       -gdb tcp::1234
 
