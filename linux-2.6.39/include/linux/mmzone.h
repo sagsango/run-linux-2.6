@@ -76,6 +76,7 @@ struct zone_padding {
 #define ZONE_PADDING(name)
 #endif
 
+/* XXX: zone stat items */
 enum zone_stat_item {
 	/* First 128 byte cacheline (assuming 64 bit words) */
 	NR_FREE_PAGES,

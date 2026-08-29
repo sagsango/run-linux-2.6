@@ -17,7 +17,7 @@
 #include <linux/rwlock.h>
 #include <linux/mmzone.h>
 #include <linux/nodemask.h>
-
+#include "filecache_dump.h"
 
 #define DEVICE_NAME "mem_debugger"
 
@@ -25,6 +25,7 @@
 #define COMPOUND_PAGE_TEST _IO('M', 2)
 #define MEM_DUMP_VMAS       _IO('M', 3)
 #define MEM_DUMP_NUMA       _IO('M', 4)
+#define MEM_FILECACHE_DUMP  _IO('M', 5)
 
 /* compound_page_test <begin> */
 #define TEST_ORDER 2
@@ -499,16 +500,15 @@ static long mem_debugger_ioctl(struct file *file,
                                unsigned long arg)
 {
 
+
     switch (cmd) {
 
     case MEM_SHOW_FREE_AREAS:
-
         printk(KERN_INFO
                "mem_debugger: calling show_free_areas()\n");
-
         show_free_areas();
-
         break;
+
     case COMPOUND_PAGE_TEST:
 	compound_page_test();
 	break;
@@ -519,6 +519,10 @@ static long mem_debugger_ioctl(struct file *file,
 
      case MEM_DUMP_NUMA:
 	traverse_nodes();
+	break;
+
+     case MEM_FILECACHE_DUMP:
+	filecache_dump();
 	break;
 
     default:
