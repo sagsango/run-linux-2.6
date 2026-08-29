@@ -24,6 +24,7 @@
 #define MEM_SHOW_FREE_AREAS _IO('M', 1)
 #define COMPOUND_PAGE_TEST _IO('M', 2)
 #define MEM_DUMP_VMAS       _IO('M', 3)
+#define MEM_DUMP_NUMA       _IO('M', 4)
 
 /* compound_page_test <begin> */
 #define TEST_ORDER 2
@@ -498,7 +499,6 @@ static long mem_debugger_ioctl(struct file *file,
                                unsigned long arg)
 {
 
-    traverse_nodes();
     switch (cmd) {
 
     case MEM_SHOW_FREE_AREAS:
@@ -516,6 +516,10 @@ static long mem_debugger_ioctl(struct file *file,
      case MEM_DUMP_VMAS:
         dump_all_vmas();
         break;
+
+     case MEM_DUMP_NUMA:
+	traverse_nodes();
+	break;
 
     default:
         return -EINVAL;

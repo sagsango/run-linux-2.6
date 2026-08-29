@@ -22,6 +22,7 @@
 #define MEM_SHOW_FREE_AREAS _IO('M', 1)
 #define COMPOUND_PAGE_TEST  _IO('M', 2)
 #define MEM_DUMP_VMAS       _IO('M', 3)
+#define MEM_DUMP_NUMA	    _IO('M', 4)
 
 int mem_debugger_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 
@@ -66,7 +67,8 @@ int mem_debugger_main(int argc, char **argv)
 		printf("1. Show Free Areas\n");
 		printf("2. Compound Page Test\n");
 		printf("3. Dump all vma's userspace + kernel(shared)\n");
-		printf("4. Dump /proc/self/maps\n");
+		printf("4. Dump all numa nodes\n");
+		printf("5. Dump /proc/self/maps\n");
 		printf("0. Exit\n");
 		printf("Select: ");
 		fflush(stdout);
@@ -105,6 +107,14 @@ int mem_debugger_main(int argc, char **argv)
                                 printf("MEM_DUMP_VMAS executed successfully. Check dmesg.\n");
                         break;
 		case 4:
+			ret = ioctl(fd, MEM_DUMP_NUMA);
+			if (ret < 0) {
+				printf("MEM_DUMP_NUMA, failed\n");
+			} else {
+				printf("MEM_DUMP_NUMA, returned.\n");
+			}
+			break;
+		case 5:
 			/* TODO: we should print all the /proc/self path and
 			 * 	 ask user to chose which one to pick
 			 */
