@@ -369,7 +369,51 @@ static void dump_zone(struct zone *zone, int nid, int zid)
 	       zone->zone_pgdat->node_id);
 }
 
+/* XXX: copied from mm/page_alloc.c */
+static char * const zone_names[MAX_NR_ZONES] = {
+#ifdef CONFIG_ZONE_DMA
+         "DMA",
+#endif
+#ifdef CONFIG_ZONE_DMA32
+         "DMA32",
+#endif
+         "Normal",
+#ifdef CONFIG_HIGHMEM
+         "HighMem",
+#endif
+         "Movable",
+};
 
+static char * const zonelist_name[MAX_ZONELISTS] = {
+#ifdef CONFIG_NUMA
+	"FALLBACK",
+#endif
+	"NO_FALLBACK"
+};
+
+static int dump_zonelist(pg_data_t *pgdat, int nid) {
+
+	int i, j;
+	struct zoneref *zr;
+	printk(KERN_INFO
+	       "zonelist (aka: zone allocation order):\n");
+
+	for (i = 0; i <MAX_ZONELISTS; ++i) {
+		printk(KERN_INFO
+		       "  nid:%d, zonelist[%s]:", nid, zonelist_name[i]);
+		for (j=0; j <= MAX_ZONES_PER_ZONELIST; ++j) {
+			zr = &(pgdat->node_zonelists[i]._zonerefs[j]);
+			if (!zr->zone) continue;
+			printk(KERN_INFO
+			       "    [nid:%d, zid:%s] ",
+			       zr->zone->node,
+			       zone_names[zr->zone_idx]);
+		}
+	}
+
+	return 0;
+
+}
 static void dump_pgdat(pg_data_t *pgdat, int nid)
 {
 	int zid;
@@ -416,6 +460,9 @@ static void dump_pgdat(pg_data_t *pgdat, int nid)
 
 		dump_zone(zone, nid, zid);
 	}
+
+	/* XXX: page allocation order */
+	dump_zonelist(pgdat, nid);
 }
 
 static void traverse_nodes(void)
