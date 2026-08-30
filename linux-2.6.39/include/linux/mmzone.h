@@ -281,6 +281,13 @@ struct zone_reclaim_stat {
 	unsigned long		nr_saved_scan[NR_LRU_LISTS];
 };
 
+/* XXX: NOTE: in this version unlink 2.6.20;
+ *	we dont have active and inactive lists
+ *	so swapout logic (vmscan) going to be
+ *	used little different here.
+ *
+ *	which is per_cpu_pageset; with 5 levels
+ */
 struct zone {
 	/* Fields commonly accessed by the page allocator */
 
@@ -640,7 +647,7 @@ typedef struct pglist_data {
 					     range, including holes */
 	int node_id;
 	wait_queue_head_t kswapd_wait;
-	struct task_struct *kswapd;
+	struct task_struct *kswapd; /* XXX: Every numa has kswapd not zone */
 	int kswapd_max_order;
 	enum zone_type classzone_idx;
 } pg_data_t;
