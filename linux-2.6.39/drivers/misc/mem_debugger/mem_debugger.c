@@ -387,7 +387,7 @@ static void dump_zone_percpu_pages(struct zone *zone)
         //printk(KERN_INFO
         //       "\n==================================================\n");
         printk(KERN_INFO
-               "    PER-CPU PAGESET DUMP\n");
+               "    PER-CPU PAGESET DUMP:\n");
         //printk(KERN_INFO
         //       "==================================================\n");
 
@@ -501,7 +501,17 @@ static void dump_zone_percpu_pages(struct zone *zone)
         //printk(KERN_INFO
         //       "\n==================================================\n");
 }
-
+static int dump_free_area(struct zone* zone) {
+	int i;
+	printk(KERN_INFO
+	       "    FREE AREA:");
+	for (i = 0; i<MAX_ORDER; ++i) {
+		printk(KERN_INFO
+		       "      order:%2d, size:4*%4d KB, free:%5d\n",
+		       i, 1<<i, zone->free_area[i].nr_free);
+	}
+	return 0;
+}
 static void dump_zone(struct zone *zone, int nid, int zid)
 {
 	printk(KERN_INFO
@@ -552,6 +562,7 @@ static void dump_zone(struct zone *zone, int nid, int zid)
 	       zone->zone_pgdat->node_id);
 
 	dump_zone_percpu_pages(zone);
+	dump_free_area(zone);
         printk(KERN_INFO
                "    ----------------------------------------\n");
 }
