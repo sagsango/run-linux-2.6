@@ -484,7 +484,7 @@ static void dump_zone_percpu_pages(struct zone *zone)
                        ps->stat_threshold);
 
                 printk(KERN_INFO
-                       "      vm_stat_diff:\n");
+                       "      percpu_vm_stat:\n");
 
                 for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++) {
 
@@ -500,6 +500,24 @@ static void dump_zone_percpu_pages(struct zone *zone)
 
         //printk(KERN_INFO
         //       "\n==================================================\n");
+}
+
+static int dump_zone_vm_stat(struct zone *zone) {
+	int i;
+	long x;
+	printk(KERN_INFO
+	       "  zone_vm_stat:\n");
+
+	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++) {
+		x = atomic_long_read(&zone->vm_stat[i]);
+		if (x != 0) {
+			printk(KERN_INFO
+			       "    stat[%s] = %d\n",
+			       zone_stat_name[i],
+			       x);
+		}
+	}
+	return 0;
 }
 static int dump_free_area(struct zone* zone) {
 	int i;
@@ -563,6 +581,7 @@ static void dump_zone(struct zone *zone, int nid, int zid)
 
 	dump_zone_percpu_pages(zone);
 	dump_free_area(zone);
+	dump_zone_vm_stat(zone);
         printk(KERN_INFO
                "    ----------------------------------------\n");
 }
