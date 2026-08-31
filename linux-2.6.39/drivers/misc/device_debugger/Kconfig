@@ -1,0 +1,9 @@
+config DEVICE_DEBUGGER
+	tristate "Device debugger by Sagar"
+	default y
+	help
+	  Provides a character device for triggering Linux driver
+	  debugging operations from userspace.
+
+	  This driver is intended for debugging and experimentation
+	  with the Linux device-management subsystem.

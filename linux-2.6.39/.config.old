@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux/x86_64 2.6.39 Kernel Configuration
-# Fri Aug 28 21:35:51 2026
+# Sat Aug 29 06:05:14 2026
 #
 CONFIG_64BIT=y
 # CONFIG_X86_32 is not set
@@ -115,7 +115,7 @@ CONFIG_RCU_FANOUT=64
 # CONFIG_RCU_FAST_NO_HZ is not set
 # CONFIG_TREE_RCU_TRACE is not set
 # CONFIG_IKCONFIG is not set
-CONFIG_LOG_BUF_SHIFT=18
+CONFIG_LOG_BUF_SHIFT=21
 CONFIG_HAVE_UNSTABLE_SCHED_CLOCK=y
 CONFIG_CGROUPS=y
 # CONFIG_CGROUP_DEBUG is not set

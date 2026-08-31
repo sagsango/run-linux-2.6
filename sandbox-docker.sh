@@ -76,15 +76,15 @@ show_menu() {
     echo "=================================================="
     echo "       LINUX 2.6.39 SANDBOX AUTOMATION SCRIPT     "
     echo "=================================================="
-    echo "0) First time setup (just after git clone)"
-    echo "1) Rebuild & Install Userspace (BusyBox)"
-    echo "2) make menufoncig"
-    echo "3) Recompile Kernel Only"
-    echo "4) Recreate initrd.img Only (Fast Pack)"
-    echo "5) Run QEMU Environment"
-    echo "6) Run Full Pipeline (Compile All + Pack + Boot)"
-    echo "7) Erase the last hybernation state on swap device"
-    echo "8) Exit Sandbox Script"
+    echo "1) First time setup (just after git clone)"
+    echo "2) Rebuild & Install Userspace (BusyBox)"
+    echo "3) make menufoncig"
+    echo "4) Recompile Kernel Only"
+    echo "5) Recreate initrd.img Only (Fast Pack)"
+    echo "6) Run QEMU Environment"
+    echo "7) Run Full Pipeline (Compile All + Pack + Boot)"
+    echo "8) Erase the last hybernation state on swap device"
+    echo "0) Exit Sandbox Script"
     echo "=================================================="
 }
 
@@ -114,7 +114,9 @@ run_qemu() {
       -numa node,nodeid=0,cpus=0,mem=512 \
       -numa node,nodeid=1,cpus=1,mem=512 \
       -numa node,nodeid=2,cpus=2,mem=512 \
-      -numa node,nodeid=3,cpus=3,mem=512
+      -numa node,nodeid=3,cpus=3,mem=512 \
+      -netdev user,id=net0 \
+      -device e1000,netdev=net0
       #-S \
       #-gdb tcp::1234
 
@@ -122,33 +124,33 @@ run_qemu() {
 
 while true; do
     show_menu
-    read -p "Select an action [1-7]: " choice
+    read -p "Select an action [0-8]: " choice
     case $choice in
-        0)  verify_and_build_structures
+        1)  verify_and_build_structures
             echo "Done the first time setup."
             ;;
-        1)
+        2)
             # Updated to explicitly print 64-bit compilation target
             echo "--> Compiling 64-bit Static BusyBox..."
             cd "$BUSYBOX_DIR" && make ARCH=x86_64 -j$(nproc) && make install
             cp -av "$BUSYBOX_DIR/_install/"* "$ROOTFS_DIR/"
             ;;
-        2)
+        3)
             cd "$KERNEL_DIR" && make ARCH=x86_64 menuconfig
             ;;
-        3)
+        4)
             echo "--> Compiling Kernel changes..."
             cd "$KERNEL_DIR" && make ARCH=x86_64 -j$(nproc)
             cd "$KERNEL_DIR" && make ARCH=x86_64 INSTALL_MOD_PATH="$ROOTFS_DIR" modules_install
             ;;
-        4)
+        5)
             pack_initrd
             ;;
-        5)
+        6)
             run_qemu
             exit 0
             ;;
-        6)
+        7)
             echo "--> Running FULL Sandbox Compilation and Pack pipeline..."
             verify_and_build_structures
             cd "$BUSYBOX_DIR" && make -j$(nproc) && make install
@@ -159,11 +161,11 @@ while true; do
             run_qemu
             exit 0
             ;;
-        7)
+        8)
             echo '--> Erasing the last hibernation state...'
             dd if=/dev/zero of=swap.img bs=1M count=95
             ;;
-        8)
+        0)
             echo "Exiting script. Happy hacking!"
             exit 0
             ;;

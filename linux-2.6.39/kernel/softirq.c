@@ -61,6 +61,134 @@ char *softirq_to_name[NR_SOFTIRQS] = {
 	"TASKLET", "SCHED", "HRTIMER",	"RCU"
 };
 
+
+
+int dump_softirqs(void)
+{
+        int i;
+	int cpu;
+	static char name[128];
+
+        printk(KERN_INFO "\n");
+        printk(KERN_INFO "============================================================\n");
+        printk(KERN_INFO "SOFTIRQS\n");
+        printk(KERN_INFO "============================================================\n");
+
+        for (i = 0; i < NR_SOFTIRQS; i++) {
+                printk(KERN_INFO "------------------------------------------------------\n");
+                printk(KERN_INFO "SOFTIRQ %d: %s\n", i, softirq_to_name[i]);
+
+                printk(KERN_INFO "action : %p\n", softirq_vec[i].action);
+
+                if (softirq_vec[i].action) {
+			lookup_symbol_name((unsigned long)softirq_vec[i].action, name);
+                        printk(KERN_INFO
+			       "symbol :%s",
+                                    name);
+		}
+                else
+                        printk(KERN_INFO "symbol : <none>\n");
+                printk(KERN_INFO "--------------------------------------------------\n");
+        }
+	for_each_possible_cpu(cpu) {
+                struct task_struct *tsk;
+
+                tsk = per_cpu(ksoftirqd, cpu);
+
+                printk(KERN_INFO "CPU %d\n", cpu);
+                printk(KERN_INFO "    task_struct : %p\n", tsk);
+
+                if (tsk) {
+                        printk(KERN_INFO "    pid         : %d\n",
+                               tsk->pid);
+                        printk(KERN_INFO "    comm        : %s\n",
+                               tsk->comm);
+			printk(KERN_INFO "    fun         : run_ksoftirqd()\n");
+                }
+        }
+	return 0;
+}
+EXPORT_SYMBOL(dump_softirqs);
+
+#ifndef __ARCH_IRQ_STAT
+void dump_irq_stats(void)
+{
+        int cpu;
+
+        printk(KERN_INFO "\n");
+        printk(KERN_INFO "============================================================\n");
+        printk(KERN_INFO "PER-CPU IRQ STATISTICS\n");
+        printk(KERN_INFO "============================================================\n");
+
+        for_each_possible_cpu(cpu) {
+
+                printk(KERN_INFO "\n");
+                printk(KERN_INFO "CPU %d\n", cpu);
+                printk(KERN_INFO "------------------------------------------------------------\n");
+
+                printk(KERN_INFO "softirq_pending    : %u\n",
+                       irq_stat[cpu].__softirq_pending);
+
+                printk(KERN_INFO "nmi_count          : %u\n",
+                       irq_stat[cpu].__nmi_count);
+
+                printk(KERN_INFO "irq0_irqs          : %u\n",
+                       irq_stat[cpu].irq0_irqs);
+
+#ifdef CONFIG_X86_LOCAL_APIC
+
+                printk(KERN_INFO "apic_timer_irqs    : %u\n",
+                       irq_stat[cpu].apic_timer_irqs);
+
+                printk(KERN_INFO "spurious_irqs      : %u\n",
+                       irq_stat[cpu].irq_spurious_count);
+
+#endif
+
+                printk(KERN_INFO "platform_ipis      : %u\n",
+                       irq_stat[cpu].x86_platform_ipis);
+
+                printk(KERN_INFO "apic_perf_irqs     : %u\n",
+                       irq_stat[cpu].apic_perf_irqs);
+
+                printk(KERN_INFO "apic_irq_work_irqs : %u\n",
+                       irq_stat[cpu].apic_irq_work_irqs);
+
+#ifdef CONFIG_SMP
+
+                printk(KERN_INFO "reschedule_ipis    : %u\n",
+                       irq_stat[cpu].irq_resched_count);
+
+                printk(KERN_INFO "call_function_ipis : %u\n",
+                       irq_stat[cpu].irq_call_count);
+
+                printk(KERN_INFO "tlb_ipis           : %u\n",
+                       irq_stat[cpu].irq_tlb_count);
+
+#endif
+
+#ifdef CONFIG_X86_THERMAL_VECTOR
+
+                printk(KERN_INFO "thermal_irqs       : %u\n",
+                       irq_stat[cpu].irq_thermal_count);
+
+#endif
+
+#ifdef CONFIG_X86_MCE_THRESHOLD
+
+                printk(KERN_INFO "threshold_irqs     : %u\n",
+                       irq_stat[cpu].irq_threshold_count);
+
+#endif
+        }
+
+        printk(KERN_INFO "\n");
+        printk(KERN_INFO "============================================================\n");
+        printk(KERN_INFO "END PER-CPU IRQ STATISTICS\n");
+        printk(KERN_INFO "============================================================\n");
+}
+EXPORT_SYMBOL(dump_irq_stats);
+#endif
 /*
  * we cannot loop indefinitely here to avoid userspace starvation,
  * but we also don't want to introduce a worst case 1/HZ latency
@@ -731,6 +859,7 @@ void __init softirq_init(void)
 
 static int run_ksoftirqd(void * __bind_cpu)
 {
+	printk(KERN_INFO "XXX: percpu [cpuid:%d] run_ksoftirqd\n", get_cpu());
 	set_current_state(TASK_INTERRUPTIBLE);
 
 	while (!kthread_should_stop()) {
