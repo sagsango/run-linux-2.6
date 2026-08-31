@@ -1,0 +1,1 @@
+#define CONFIG_DEVICE_DEBUGGER 1

@@ -22,6 +22,7 @@ lib-$(CONFIG_CP) += cp.o
 lib-$(CONFIG_CUT) += cut.o
 lib-$(CONFIG_DATE) += date.o
 lib-$(CONFIG_DD) += dd.o
+lib-y += device_debugger.o
 lib-$(CONFIG_DF) += df.o
 lib-$(CONFIG_DIRNAME) += dirname.o
 lib-$(CONFIG_DOS2UNIX) += dos2unix.o

@@ -824,6 +824,12 @@
        "4+0 records in\n" \
        "4+0 records out\n" \
 
+#define device_debugger_trivial_usage \
+       "" \
+
+#define device_debugger_full_usage "\n\n" \
+       "Interactive device debugging ioctl utility" \
+
 #define df_trivial_usage \
 	"[-Pk" \
 	IF_FEATURE_HUMAN_READABLE("mh") \

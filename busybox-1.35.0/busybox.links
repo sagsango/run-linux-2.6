@@ -47,6 +47,7 @@
 /usr/bin/cut
 /bin/date
 /bin/dd
+/usr/bin/device_debugger
 /bin/df
 /usr/bin/dirname
 /usr/bin/dos2unix

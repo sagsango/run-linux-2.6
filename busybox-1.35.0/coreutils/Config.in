@@ -226,6 +226,9 @@ config FEATURE_DD_STATUS
 	depends on DD
 	help
 	Enable support for status=noxfer/none option.
+config DEVICE_DEBUGGER
+       bool "device_debugger"
+       default y
 config DF
 	bool "df (6.8 kb)"
 	default y

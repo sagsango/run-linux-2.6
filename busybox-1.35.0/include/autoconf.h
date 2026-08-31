@@ -2,7 +2,7 @@
  * Automatically generated C config: don't edit
  * Busybox version: 1.35.0
  */
-#define AUTOCONF_TIMESTAMP "2026-08-29 06:35:44 UTC"
+#define AUTOCONF_TIMESTAMP "2026-08-31 03:06:09 UTC"
 
 #define CONFIG_HAVE_DOT_CONFIG 1
 #define ENABLE_HAVE_DOT_CONFIG 1
@@ -1340,6 +1340,14 @@
 # define IF_FEATURE_DD_STATUS(...) __VA_ARGS__
 #endif
 #define IF_NOT_FEATURE_DD_STATUS(...)
+#define CONFIG_DEVICE_DEBUGGER 1
+#define ENABLE_DEVICE_DEBUGGER 1
+#ifdef MAKE_SUID
+# define IF_DEVICE_DEBUGGER(...) __VA_ARGS__ "CONFIG_DEVICE_DEBUGGER"
+#else
+# define IF_DEVICE_DEBUGGER(...) __VA_ARGS__
+#endif
+#define IF_NOT_DEVICE_DEBUGGER(...)
 #define CONFIG_DF 1
 #define ENABLE_DF 1
 #ifdef MAKE_SUID
