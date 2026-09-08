@@ -46,7 +46,7 @@ RINIT
     # 5. Fix missing BusyBox configurations if cloned fresh (Updated for x86_64)
     if [ ! -f "$BUSYBOX_DIR/.config" ]; then
         echo "--> Reconfiguring BusyBox compiler for x86_64..."
-        cd "$BUSYBOX_DIR" && make distclean && make ARCH=x86_64defconfig
+        cd "$BUSYBOX_DIR" && make distclean && make ARCH=x86_64 defconfig
         sed -i 's/# CONFIG_STATIC is not set/CONFIG_STATIC=y/' .config
         # Cleaned out -m32 and i386 flags to compile as native 64-bit
         sed -i 's/CONFIG_EXTRA_CFLAGS=""/CONFIG_EXTRA_CFLAGS=""/' .config
