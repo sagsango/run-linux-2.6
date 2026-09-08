@@ -26,6 +26,7 @@
 #define MEM_DUMP_VMAS       _IO('M', 3)
 #define MEM_DUMP_NUMA       _IO('M', 4)
 #define MEM_FILECACHE_DUMP  _IO('M', 5)
+#define DUMP_ALL_TASKS      _IO('M', 6)
 
 /* compound_page_test <begin> */
 #define TEST_ORDER 2
@@ -759,6 +760,75 @@ static void traverse_nodes(void)
 	}
 }
 
+static void dump_all_tasks() {
+    struct task_struct *task;
+
+    printk(KERN_INFO "========== TASK DUMP ==========\n");
+
+    //read_lock(&tasklist_lock);
+    rcu_read_lock();
+
+    task = &init_task;
+
+    do {
+        printk(KERN_INFO
+               "\n"
+               "----------------------------------------\n"
+               "task        = %p\n"
+               "pid         = %d\n"
+               "tgid        = %d\n"
+               "comm        = %s\n"
+               "state       = %ld\n"
+               "flags       = 0x%lx\n"
+               "prio        = %d\n"
+               "static_prio = %d\n"
+               "normal_prio = %d\n"
+               "policy      = %u\n"
+               //"on_cpu      = %u\n"
+               //"cpu         = %d\n"
+               "parent      = %d (%s)\n"
+               "real_parent = %d (%s)\n"
+               "mm          = %p\n"
+               "active_mm   = %p\n"
+               "stack       = %p\n"
+               "tasks       = %p\n"
+               "tasks.next  = %p\n"
+               "tasks.prev  = %p\n",
+               task,
+               task->pid,
+               task->tgid,
+               task->comm,
+               task->state,
+               task->flags,
+               task->prio,
+               task->static_prio,
+               task->normal_prio,
+               task->policy,
+               //task->on_cpu,
+               //task->cpu,
+               task->parent ? task->parent->pid : -1,
+               task->parent ? task->parent->comm : "NULL",
+               task->real_parent ? task->real_parent->pid : -1,
+               task->real_parent ? task->real_parent->comm : "NULL",
+               task->mm,
+               task->active_mm,
+               task->stack,
+               &task->tasks,
+               task->tasks.next,
+               task->tasks.prev);
+
+        task = next_task(task);
+
+    } while (task != &init_task);
+
+    //read_unlock(&tasklist_lock);
+    rcu_read_unlock();
+
+    printk(KERN_INFO "========== END TASK DUMP ==========\n");
+
+    return 0;
+}
+
 static long mem_debugger_ioctl(struct file *file,
                                unsigned int cmd,
                                unsigned long arg)
@@ -787,6 +857,10 @@ static long mem_debugger_ioctl(struct file *file,
 
      case MEM_FILECACHE_DUMP:
 	filecache_dump();
+	break;
+
+     case DUMP_ALL_TASKS:
+	dump_all_tasks();
 	break;
 
     default:

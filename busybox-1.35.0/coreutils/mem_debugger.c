@@ -24,7 +24,7 @@
 #define MEM_DUMP_VMAS       _IO('M', 3)
 #define MEM_DUMP_NUMA	    _IO('M', 4)
 #define MEM_FILECACHE_DUMP  _IO('M', 5)
-
+#define DUMP_ALL_TASKS      _IO('M', 6)
 int mem_debugger_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 
 int self_proc(const char * msg, const char * path) {
@@ -70,7 +70,8 @@ int mem_debugger_main(int argc, char **argv)
 		printf("3. Dump all vma's userspace + kernel(shared)\n");
 		printf("4. Dump all numa nodes\n");
 		printf("5. Dump page cache (aka:file cache)\n");
-		printf("6. Dump /proc/self/maps\n");
+		printf("6. Dump all tasks\n");
+		printf("100. Dump /proc/self/maps\n");
 		printf("0. Exit\n");
 		printf("Select: ");
 		fflush(stdout);
@@ -125,6 +126,9 @@ int mem_debugger_main(int argc, char **argv)
                         }
                         break;
 		case 6:
+			ret = ioctl(fd, DUMP_ALL_TASKS);
+			break;
+		case 100:
 			/* TODO: we should print all the /proc/self path and
 			 * 	 ask user to chose which one to pick
 			 */
