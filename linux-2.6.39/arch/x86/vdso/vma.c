@@ -35,6 +35,7 @@ static inline void *var_ref(void *p, char *name)
 	return p;
 }
 
+/* XXX: vdso pages init */
 static int __init init_vdso_vars(void)
 {
 	int npages = (vdso_end - vdso_start + PAGE_SIZE - 1) / PAGE_SIZE;
