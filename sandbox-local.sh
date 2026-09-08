@@ -43,44 +43,48 @@ RINIT
         chmod +x "$ROOTFS_DIR/init"
     fi
 
-    # 5. Fix missing BusyBox configurations if cloned fresh
+    # 5. Fix missing BusyBox configurations if cloned fresh (Updated for x86_64)
     if [ ! -f "$BUSYBOX_DIR/.config" ]; then
-        echo "--> Reconfiguring BusyBox compiler..."
-        cd "$BUSYBOX_DIR" && make defconfig
+        echo "--> Reconfiguring BusyBox compiler for x86_64..."
+        cd "$BUSYBOX_DIR" && make distclean && make ARCH=x86_64 defconfig
         sed -i 's/# CONFIG_STATIC is not set/CONFIG_STATIC=y/' .config
-        sed -i 's/CONFIG_EXTRA_CFLAGS=""/CONFIG_EXTRA_CFLAGS="-m32 -march=i386"/' .config
-        sed -i 's/CONFIG_EXTRA_LDFLAGS=""/CONFIG_EXTRA_LDFLAGS="-m32"/' .config
+        # Cleaned out -m32 and i386 flags to compile as native 64-bit
+        sed -i 's/CONFIG_EXTRA_CFLAGS=""/CONFIG_EXTRA_CFLAGS=""/' .config
+        sed -i 's/CONFIG_EXTRA_LDFLAGS=""/CONFIG_EXTRA_LDFLAGS=""/' .config
     fi
 
-    # 6. Fix missing Kernel configurations or hardcoded paths from the old workspace
+    # 6. Fix missing Kernel configurations or hardcoded paths from the old workspace (Updated for x86_64)
     if [ ! -f "$KERNEL_DIR/.config" ] || [ ! -f "$KERNEL_DIR/scripts/basic/Makefile" ]; then
-        echo "--> Re-initializing Kernel layout definitions..."
+        echo "--> Re-initializing Kernel layout definitions for x86_64..."
         cd "$KERNEL_DIR"
-        make ARCH=i386 mrproper >/dev/null 2>&1
-        make ARCH=i386 defconfig
-        
+        make ARCH=x86_64 mrproper >/dev/null 2>&1
+        make ARCH=x86_64 defconfig
+
         echo "--> Re-applying code architecture patches..."
         sed -i '1i #include <limits.h>' scripts/mod/sumversion.c 2>/dev/null
         sed -i 's|if (labs(utsname()->version|if (0|g' init/version.c 2>/dev/null
-        sed -i 's|extern long syscall_trace_enter|extern __attribute__((regparm(0))) long syscall_trace_enter|g' arch/x86/include/asm/ptrace.h 2>/dev/null
-        sed -i 's|extern void syscall_trace_leave|extern __attribute__((regparm(0))) void syscall_trace_leave|g' arch/x86/include/asm/ptrace.h 2>/dev/null
-        sed -i 's/asmregparm long syscall_trace_enter/__attribute__((regparm(0))) long syscall_trace_enter/g' arch/x86/kernel/ptrace.c 2>/dev/null
-        sed -i 's/asmregparm void syscall_trace_leave/__attribute__((regparm(0))) void syscall_trace_leave/g' arch/x86/kernel/ptrace.c 2>/dev/null
+        
+        # NOTE: Dropped the 32-bit specific __attribute__((regparm(0))) ptrace modifications.
+        # x86_64 strictly passes arguments via registers (rdi, rsi, rdx...) by default, 
+        # making the old x86_32 stack-forcing regparm patches obsolete and prone to compilation errors.
     fi
 }
+
+
 
 show_menu() {
     echo "=================================================="
     echo "       LINUX 2.6.39 SANDBOX AUTOMATION SCRIPT     "
     echo "=================================================="
-    echo "0) First time setup (just after git clone)"
-    echo "1) Rebuild & Install Userspace (BusyBox)"
-    echo "2) Recompile Kernel Only"
-    echo "3) Recreate initrd.img Only (Fast Pack)"
-    echo "4) Run QEMU Environment"
-    echo "5) Run Full Pipeline (Compile All + Pack + Boot)"
-    echo "6) Erase the last hybernation state on swap device"
-    echo "7) Exit Sandbox Script"
+    echo "1) First time setup (just after git clone)"
+    echo "2) Rebuild & Install Userspace (BusyBox)"
+    echo "3) make menufoncig"
+    echo "4) Recompile Kernel Only"
+    echo "5) Recreate initrd.img Only (Fast Pack)"
+    echo "6) Run QEMU Environment"
+    echo "7) Run Full Pipeline (Compile All + Pack + Boot)"
+    echo "8) Erase the last hybernation state on swap device"
+    echo "0) Exit Sandbox Script"
     echo "=================================================="
 }
 
@@ -88,201 +92,83 @@ pack_initrd() {
     echo "--> Packaging fresh initrd.img..."
     cd "$ROOTFS_DIR"
     find . -print0 | cpio --null -ov --format=newc 2>/dev/null | gzip -9 > "$INITRD_IMG"
+    find "$KERNEL_DIR" -name "*.ko" -exec cp {} "$ROOTFS_DIR"/lib/modules/ \;
     echo "--> Done! Image size: $(ls -lh $INITRD_IMG | awk '{print $5}')"
-}
-
-__run_qemu() {
-    echo "--> Launching QEMU..."
-    cd "$KERNEL_DIR"
-    qemu-system-i386 \
-      -kernel arch/x86/boot/bzImage \
-      -initrd "$INITRD_IMG" \
-      -hda ../disk.img \
-      -hdb ../swap.img \
-      -append "console=ttyS0 root=/dev/ram0 resume=/dev/sdb no_console_suspend debug ignore_loglevel loglevel=8 earlyprintk=ttyS0,115200 initcall_debug" \
-      -nographic \
-      -serial stdio \
-      -monitor telnet:127.0.0.1:1235,server,nowait \
-      -m 256
 }
 
 run_qemu() {
     echo "--> Launching QEMU..."
     cd "$KERNEL_DIR"
-
-    qemu-system-i386 \
-      -machine pc-q35-8.2 \
-      -cpu max \
-      -kernel arch/x86/boot/bzImage \
+    qemu-system-x86_64 \
+      -machine pc \
+      -smp 4 \
+      -kernel /home/sagar/run-linux-2.6/linux-2.6.39/arch/x86/boot/bzImage \
       -initrd "$INITRD_IMG" \
-      -hda ../disk.img \
-      -hdb ../swap.img \
-      -append "console=ttyS0 root=/dev/ram0 resume=/dev/sdb \
-                no_console_suspend debug ignore_loglevel loglevel=8 \
-                earlyprintk=ttyS0,115200 initcall_debug \
-                intel_iommu=on" \
+      -hda /home/sagar/run-linux-2.6/disk.img \
+      -hdb /home/sagar/run-linux-2.6/swap.img \
+      -append "console=ttyS0 root=/dev/ram0 numa=on numa=fake=4 apic=bigsmp resume=/dev/sdb no_console_suspend debug ignore_loglevel loglevel=8 earlyprintk=ttyS0,115200 initcall_debug root=/dev/sda1 console=ttyS0 init=/bin/sh" \
       -nographic \
       -serial stdio \
       -monitor telnet:127.0.0.1:1235,server,nowait \
-      -m 256 \
-      -device intel-iommu
-      # -S \
-      # -gdb tcp::1238 
+      -m 2G \
+      -netdev user,id=net0 \
+      -device e1000,netdev=net0 \
+      -S \
+      -gdb tcp::1234
 
-}
-run_qemu_iommu() {
-    echo "--> Launching QEMU..."
-    cd "$KERNEL_DIR"
-
-    qemu-system-i386 \
-        -machine pc-q35-8.2 \
-        -cpu core2duo \
-        -m 256 \
-        -kernel arch/x86/boot/bzImage \
-        -initrd "$INITRD_IMG" \
-        -drive file=../disk.img,format=raw \
-        -drive file=../swap.img,format=raw \
-        \
-        -device intel-iommu,intremap=on \
-        -device e1000,netdev=n0 \
-        -netdev user,id=n0 \
-        \
-        -append "console=ttyS0 \
-                 root=/dev/ram0 \
-                 intel_iommu=on \
-                 no_console_suspend \
-                 debug \
-                 ignore_loglevel \
-                 loglevel=8 \
-                 earlyprintk=ttyS0,115200 \
-                 initcall_debug" \
-        \
-        -nographic \
-        -serial stdio \
-        -monitor telnet:127.0.0.1:1235,server,nowait
-}
-
-run_qemu_iommu_old() {
-        echo "--> Launching QEMU..."
-    cd "$KERNEL_DIR"
-    qemu-system-i386 \
-    -machine pc-q35-8.2 \
-    -cpu core2duo \
-    -kernel arch/x86/boot/bzImage \
-    -initrd "$INITRD_IMG" \
-    -drive file=../disk.img,format=raw \
-    -drive file=../swap.img,format=raw \
-    -device e1000,netdev=n0 \
-    -netdev user,id=n0 \
-    -device intel-iommu \
-    -append "console=ttyS0 \
-             root=/dev/ram0 \
-             intel_iommu=on \
-             no_console_suspend \
-             debug \
-             ignore_loglevel \
-             loglevel=8 \
-             earlyprintk=ttyS0,115200 \
-             initcall_debug" \
-    -nographic \
-    -serial stdio \
-    -monitor telnet:127.0.0.1:1235,server,nowait \
-    -m 256
-
-}
-
-run_qemu_iommu_0() {
-        echo "--> Launching QEMU..."
-    cd "$KERNEL_DIR"
-qemu-system-i386 \
-    -machine pc-q35-8.2 \
-    -kernel arch/x86/boot/bzImage \
-    -initrd "$INITRD_IMG" \
-    -drive file=../disk.img,format=raw \
-    -drive file=../swap.img,format=raw \
-    -device e1000,netdev=n0 \
-    -netdev user,id=n0 \
-    -device intel-iommu,intremap=off \
-    -append "console=ttyS0 root=/dev/ram0 \
-             intel_iommu=on \
-             iommu=pt \
-             no_console_suspend \
-             debug ignore_loglevel loglevel=8 \
-             earlyprintk=ttyS0,115200 \
-             initcall_debug" \
-    -nographic \
-    -serial stdio \
-    -monitor telnet:127.0.0.1:1235,server,nowait \
-    -m 256
-}
-
-i__2run_qemu() {
-    echo "--> Launching QEMU..."
-    cd "$KERNEL_DIR"
-
-    qemu-system-i386 \
-  -machine q35 \
-  -kernel arch/x86/boot/bzImage \
-  -initrd "$INITRD_IMG" \
-  -hda ../disk.img \
-  -hdb ../swap.img \
-  -append "console=ttyS0 root=/dev/ram0 resume=/dev/sdb \
-no_console_suspend debug ignore_loglevel loglevel=8 \
-earlyprintk=ttyS0,115200 initcall_debug \
-intel_iommu=on" \
-  -nographic \
-  -serial stdio \
-  -monitor telnet:127.0.0.1:1235,server,nowait \
-  -m 256 \
-  -device intel-iommu
 }
 
 while true; do
     show_menu
-    read -p "Select an action [1-7]: " choice
+    read -p "Select an action [0-8]: " choice
     case $choice in
-        0)  verify_and_build_structures
+        1)  verify_and_build_structures
             echo "Done the first time setup."
             ;;
-        1)
-            echo "--> Compiling 32-bit Static BusyBox..."
-            cd "$BUSYBOX_DIR" && make -j$(nproc) && make install
-            cp -av "$BUSYBOX_DIR/_install/"* "$ROOTFS_DIR/"
-            pack_initrd
-            ;;
         2)
-            echo "--> Compiling Kernel changes..."
-            cd "$KERNEL_DIR" && make ARCH=i386 -j$(nproc)
+            # Updated to explicitly print 64-bit compilation target
+            echo "--> Compiling 64-bit Static BusyBox..."
+            cd "$BUSYBOX_DIR" && make ARCH=x86_64 -j$(nproc) && make install
+            cp -av "$BUSYBOX_DIR/_install/"* "$ROOTFS_DIR/"
             ;;
         3)
-            pack_initrd
+            cd "$KERNEL_DIR" && make ARCH=x86_64 menuconfig
             ;;
         4)
-            run_qemu_iommu
-            exit 0
+            echo "--> Compiling Kernel changes..."
+            cd "$KERNEL_DIR" && make ARCH=x86_64 -j$(nproc)
+            cd "$KERNEL_DIR" && make ARCH=x86_64 INSTALL_MOD_PATH="$ROOTFS_DIR" modules_install
             ;;
         5)
+            pack_initrd
+            ;;
+        6)
+            run_qemu
+            exit 0
+            ;;
+        7)
             echo "--> Running FULL Sandbox Compilation and Pack pipeline..."
             verify_and_build_structures
             cd "$BUSYBOX_DIR" && make -j$(nproc) && make install
             cp -av "$BUSYBOX_DIR/_install/"* "$ROOTFS_DIR/"
-            cd "$KERNEL_DIR" && make ARCH=i386 -j$(nproc)
+            cd "$KERNEL_DIR" && make ARCH=x86_64 -j$(nproc)
+            cd "$KERNEL_DIR" && make ARCH=x86_64 INSTALL_MOD_PATH="$ROOTFS_DIR" modules_install
             pack_initrd
             run_qemu
             exit 0
             ;;
-	6)
-	    echo '--> Erasing the last hybernation state...'
-	    dd if=/dev/zero of=swap.img bs=1M count=95
-	    ;;
-        7)
+        8)
+            echo '--> Erasing the last hibernation state...'
+            dd if=/dev/zero of=swap.img bs=1M count=95
+            ;;
+        0)
             echo "Exiting script. Happy hacking!"
             exit 0
             ;;
         *)
-            echo "Invalid selection. Please use options 1-6."
+            # Fixed the prompt notification mismatch to explicitly include all options [0-8]
+            echo "Invalid selection. Please use options 0-8."
             ;;
     esac
     echo ""
 done
-
