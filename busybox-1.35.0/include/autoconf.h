@@ -2,7 +2,7 @@
  * Automatically generated C config: don't edit
  * Busybox version: 1.35.0
  */
-#define AUTOCONF_TIMESTAMP "2026-08-31 03:06:09 UTC"
+#define AUTOCONF_TIMESTAMP "2026-09-08 11:08:03 UTC"
 
 #define CONFIG_HAVE_DOT_CONFIG 1
 #define ENABLE_HAVE_DOT_CONFIG 1
@@ -1720,6 +1720,14 @@
 # define IF_MEM_DEBUGGER(...) __VA_ARGS__
 #endif
 #define IF_NOT_MEM_DEBUGGER(...)
+#define CONFIG_MINI_STRACE 1
+#define ENABLE_MINI_STRACE 1
+#ifdef MAKE_SUID
+# define IF_MINI_STRACE(...) __VA_ARGS__ "CONFIG_MINI_STRACE"
+#else
+# define IF_MINI_STRACE(...) __VA_ARGS__
+#endif
+#define IF_NOT_MINI_STRACE(...)
 #define CONFIG_MKDIR 1
 #define ENABLE_MKDIR 1
 #ifdef MAKE_SUID

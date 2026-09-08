@@ -1294,6 +1294,12 @@
 #define mem_debugger_full_usage "\n\n" \
        "Interactive memory debugging ioctl utility" \
 
+#define mini_strace_trivial_usage \
+       "PROGRAM [ARGS...]" \
+
+#define mini_strace_full_usage "\n\n" \
+       "Trace system calls, registers and stack" \
+
 #define mkdir_trivial_usage \
        "[-m MODE] [-p] DIRECTORY..." \
 

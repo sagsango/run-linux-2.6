@@ -99,12 +99,12 @@ COMMANDS
             linuxrc, ln, loadfont, loadkmap, logger, login, logname, logread,
             losetup, lpd, lpq, lpr, ls, lsattr, lsmod, lsof, lspci, lsscsi,
             lsusb, lzcat, lzma, lzop, makedevs, makemime, man, md5sum, mdev,
-            mem_debugger, mesg, microcom, mim, mkdir, mkdosfs, mke2fs, mkfifo,
-            mkfs.ext2, mkfs.minix, mkfs.vfat, mknod, mkpasswd, mkswap, mktemp,
-            modinfo, modprobe, more, mount, mountpoint, mpstat, mt, mv, nameif,
-            nanddump, nandwrite, nbd-client, nc, netstat, nice, nl, nmeter,
-            nohup, nologin, nproc, nsenter, nslookup, ntpd, od, openvt,
-            partprobe, passwd, paste, patch, pgrep, pidof, ping, ping6,
+            mem_debugger, mesg, microcom, mim, mini_strace, mkdir, mkdosfs,
+            mke2fs, mkfifo, mkfs.ext2, mkfs.minix, mkfs.vfat, mknod, mkpasswd,
+            mkswap, mktemp, modinfo, modprobe, more, mount, mountpoint, mpstat,
+            mt, mv, nameif, nanddump, nandwrite, nbd-client, nc, netstat, nice,
+            nl, nmeter, nohup, nologin, nproc, nsenter, nslookup, ntpd, od,
+            openvt, partprobe, passwd, paste, patch, pgrep, pidof, ping, ping6,
             pipe_progress, pivot_root, pkill, pmap, popmaildir, poweroff,
             powertop, printenv, printf, ps, pscan, pstree, pwd, pwdx,
             raidautorun, rdate, rdev, readahead, readlink, readprofile,
@@ -2214,6 +2214,11 @@ COMMAND DESCRIPTIONS
         Run a script from a Makefile-like specification file
 
                 -f FILE         Spec file (default Mimfile)
+
+    mini_strace
+        mini_strace PROGRAM [ARGS...]
+
+        Trace system calls, registers and stack
 
     mkdir
         mkdir [-m MODE] [-p] DIRECTORY...

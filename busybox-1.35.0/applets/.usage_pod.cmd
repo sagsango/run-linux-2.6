@@ -366,6 +366,7 @@ deps_applets/usage_pod := \
     $(wildcard include/config/sha3sum.h) \
     $(wildcard include/config/sha256sum.h) \
     $(wildcard include/config/sha512sum.h) \
+    $(wildcard include/config/mini/strace.h) \
     $(wildcard include/config/mkdir.h) \
     $(wildcard include/config/mkfifo.h) \
     $(wildcard include/config/mknod.h) \
