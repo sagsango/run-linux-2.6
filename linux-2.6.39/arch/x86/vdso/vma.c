@@ -100,6 +100,23 @@ static unsigned long vdso_addr(unsigned long start, unsigned len)
 	return addr;
 }
 
+/* XXX: vdso mapping get installed runtime on every exec
+ Thread 2 hit Breakpoint 1, install_special_mapping (mm=mm@entry=0xffff88001f19b740, addr=140733885444096, len=4096, vm_flags=vm_flags@entry=67108981, pages=0xffff88005f002408) at mm/mmap.c:2485
+2485	{
+(gdb) bt
+#0  install_special_mapping (mm=mm@entry=0xffff88001f19b740, addr=140733885444096, len=4096, vm_flags=vm_flags@entry=67108981, pages=0xffff88005f002408) at mm/mmap.c:2485
+#1  0xffffffff810282c3 in arch_setup_additional_pages (bprm=bprm@entry=0xffff88001ead6600, uses_interp=<optimized out>) at arch/x86/vdso/vma.c:123
+#2  0xffffffff81114996 in load_elf_binary (bprm=0xffff88001ead6600, regs=0xffff88001eacff58) at fs/binfmt_elf.c:921
+#3  0xffffffff810dfd55 in search_binary_handler (bprm=bprm@entry=0xffff88001ead6600, regs=regs@entry=0xffff88001eacff58) at fs/exec.c:1331
+#4  0xffffffff810e0f69 in do_execve (filename=filename@entry=0xffff88001eab8000 "/bin/ls", argv=argv@entry=0x8a9c10, envp=envp@entry=0x8a9c20, regs=regs@entry=0xffff88001eacff58) at fs/exec.c:1452
+#5  0xffffffff810083c9 in sys_execve (name=<optimized out>, argv=0x8a9c10, envp=0x8a9c20, regs=0xffff88001eacff58) at arch/x86/kernel/process.c:317
+#6  0xffffffff8153a99c in stub_execve () at arch/x86/kernel/entry_64.S:716
+#7  0x000000000049c9b7 in ?? ()
+Backtrace stopped: previous frame inner to this frame (corrupt stack?)
+(gdb) p vdso_pages
+$1 = (struct page **) 0xffff88005f002408
+(gdb)
+*/
 /* Setup a VMA at program startup for the vsyscall page.
    Not called for compat tasks */
 int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
