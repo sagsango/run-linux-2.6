@@ -47,6 +47,7 @@
 /usr/bin/cut
 /bin/date
 /bin/dd
+/usr/bin/device_debugger
 /bin/df
 /usr/bin/dirname
 /usr/bin/dos2unix
@@ -76,6 +77,7 @@
 /usr/bin/sha256sum
 /usr/bin/sha512sum
 /usr/bin/mem_debugger
+/usr/bin/mini_strace
 /bin/mkdir
 /usr/bin/mkfifo
 /bin/mknod

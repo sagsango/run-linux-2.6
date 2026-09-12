@@ -1282,6 +1282,8 @@ int request_threaded_irq(unsigned int irq, irq_handler_t handler,
 			 irq_handler_t thread_fn, unsigned long irqflags,
 			 const char *devname, void *dev_id)
 {
+
+	dump_stack();
 	struct irqaction *action;
 	struct irq_desc *desc;
 	int retval;

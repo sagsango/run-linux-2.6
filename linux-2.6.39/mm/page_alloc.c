@@ -2521,6 +2521,7 @@ void __show_free_areas(unsigned int filter)
 		}
 	}
 
+	printk(" ---------- system stats [Begin] -------- \n");
 	printk("active_anon:%lu inactive_anon:%lu isolated_anon:%lu\n"
 		" active_file:%lu inactive_file:%lu isolated_file:%lu\n"
 		" unevictable:%lu"
@@ -2544,40 +2545,42 @@ void __show_free_areas(unsigned int filter)
 		global_page_state(NR_SHMEM),
 		global_page_state(NR_PAGETABLE),
 		global_page_state(NR_BOUNCE));
+	printk(" ---------- system stats [End] ---------------- \n");
 
 	for_each_populated_zone(zone) {
 		int i;
 
 		if (skip_free_areas_zone(filter, zone))
 			continue;
+		printk("-------- one polulated zone [Begin] --------- \n");
 		show_node(zone);
 		printk("%s"
-			" free:%lukB"
-			" min:%lukB"
-			" low:%lukB"
-			" high:%lukB"
-			" active_anon:%lukB"
-			" inactive_anon:%lukB"
-			" active_file:%lukB"
-			" inactive_file:%lukB"
-			" unevictable:%lukB"
-			" isolated(anon):%lukB"
-			" isolated(file):%lukB"
-			" present:%lukB"
-			" mlocked:%lukB"
-			" dirty:%lukB"
-			" writeback:%lukB"
-			" mapped:%lukB"
-			" shmem:%lukB"
-			" slab_reclaimable:%lukB"
-			" slab_unreclaimable:%lukB"
-			" kernel_stack:%lukB"
-			" pagetables:%lukB"
-			" unstable:%lukB"
-			" bounce:%lukB"
-			" writeback_tmp:%lukB"
-			" pages_scanned:%lu"
-			" all_unreclaimable? %s"
+			" free:%lukB\n"
+			" min:%lukB\n"
+			" low:%lukB\n"
+			" high:%lukB\n"
+			" active_anon:%lukB\n"
+			" inactive_anon:%lukB\n"
+			" active_file:%lukB\n"
+			" inactive_file:%lukB\n"
+			" unevictable:%lukB\n"
+			" isolated(anon):%lukB\n"
+			" isolated(file):%lukB\n"
+			" present:%lukB\n"
+			" mlocked:%lukB\n"
+			" dirty:%lukB\n"
+			" writeback:%lukB\n"
+			" mapped:%lukB\n"
+			" shmem:%lukB\n"
+			" slab_reclaimable:%lukB\n"
+			" slab_unreclaimable:%lukB\n"
+			" kernel_stack:%lukB\n"
+			" pagetables:%lukB\n"
+			" unstable:%lukB\n"
+			" bounce:%lukB\n"
+			" writeback_tmp:%lukB\n"
+			" pages_scanned:%lu\n"
+			" all_unreclaimable? %s\n"
 			"\n",
 			zone->name,
 			K(zone_page_state(zone, NR_FREE_PAGES)),
@@ -2612,6 +2615,7 @@ void __show_free_areas(unsigned int filter)
 		for (i = 0; i < MAX_NR_ZONES; i++)
 			printk(" %lu", zone->lowmem_reserve[i]);
 		printk("\n");
+		printk("----------- one populated zone [End] --------- \n");
 	}
 
 	for_each_populated_zone(zone) {
@@ -2619,9 +2623,11 @@ void __show_free_areas(unsigned int filter)
 
 		if (skip_free_areas_zone(filter, zone))
 			continue;
+		printk("-------- one polulated zone [Begin] --------- \n");
 		show_node(zone);
 		printk("%s: ", zone->name);
 
+		printk("<free_pages>*<page_size> + .... = Total_mem\n");
 		spin_lock_irqsave(&zone->lock, flags);
 		for (order = 0; order < MAX_ORDER; order++) {
 			nr[order] = zone->free_area[order].nr_free;
@@ -2631,6 +2637,7 @@ void __show_free_areas(unsigned int filter)
 		for (order = 0; order < MAX_ORDER; order++)
 			printk("%lu*%lukB ", nr[order], K(1UL) << order);
 		printk("= %lukB\n", K(total));
+		printk("----------- one populated zone [End] --------- \n");
 	}
 
 	printk("%ld total pagecache pages\n", global_page_state(NR_FILE_PAGES));

@@ -76,6 +76,7 @@ struct zone_padding {
 #define ZONE_PADDING(name)
 #endif
 
+/* XXX: zone stat items */
 enum zone_stat_item {
 	/* First 128 byte cacheline (assuming 64 bit words) */
 	NR_FREE_PAGES,
@@ -280,6 +281,13 @@ struct zone_reclaim_stat {
 	unsigned long		nr_saved_scan[NR_LRU_LISTS];
 };
 
+/* XXX: NOTE: in this version unlink 2.6.20;
+ *	we dont have active and inactive lists
+ *	so swapout logic (vmscan) going to be
+ *	used little different here.
+ *
+ *	which is per_cpu_pageset; with 5 levels
+ */
 struct zone {
 	/* Fields commonly accessed by the page allocator */
 
@@ -611,6 +619,7 @@ extern struct page *mem_map;
 struct bootmem_data;
 typedef struct pglist_data {
 	struct zone node_zones[MAX_NR_ZONES];
+	/* XXX: zonelist: Allocation fallback order */
 	struct zonelist node_zonelists[MAX_ZONELISTS];
 	int nr_zones;
 #ifdef CONFIG_FLAT_NODE_MEM_MAP	/* means !SPARSEMEM */
@@ -638,7 +647,7 @@ typedef struct pglist_data {
 					     range, including holes */
 	int node_id;
 	wait_queue_head_t kswapd_wait;
-	struct task_struct *kswapd;
+	struct task_struct *kswapd; /* XXX: Every numa has kswapd not zone */
 	int kswapd_max_order;
 	enum zone_type classzone_idx;
 } pg_data_t;

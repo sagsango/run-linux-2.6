@@ -15,12 +15,17 @@
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
 #include <linux/rwlock.h>
+#include <linux/mmzone.h>
+#include <linux/nodemask.h>
+#include "filecache_dump.h"
 
 #define DEVICE_NAME "mem_debugger"
 
 #define MEM_SHOW_FREE_AREAS _IO('M', 1)
 #define COMPOUND_PAGE_TEST _IO('M', 2)
 #define MEM_DUMP_VMAS       _IO('M', 3)
+#define MEM_DUMP_NUMA       _IO('M', 4)
+#define MEM_FILECACHE_DUMP  _IO('M', 5)
 
 /* compound_page_test <begin> */
 #define TEST_ORDER 2
@@ -313,20 +318,461 @@ static void dump_all_vmas(void)
     printk(KERN_INFO "=== [mem_debugger] Dump Complete ===\n");
 }
 
+
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/mm.h>
+#include <linux/mmzone.h>
+#include <linux/percpu.h>
+#include <linux/cpu.h>
+
+static char * migrate_type_name[MIGRATE_TYPES] = {
+	"MIGRATE_UNMOVABLE",
+	"MIGRATE_RECLAIMABLE",
+	"MIGRATE_MOVABLE",
+	"MIGRATE_RESERVE",
+	"MIGRATE_ISOLATE"
+};
+static char * zone_stat_name[NR_VM_ZONE_STAT_ITEMS] = {
+        "NR_FREE_PAGES",
+        "NR_LRU_BASE",
+        "NR_INACTIVE_ANON",  /* must match order of LRU_[IN]ACTIVE */
+        "NR_ACTIVE_ANON",         /*  "     "     "   "       "         */
+        "NR_INACTIVE_FILE",       /*  "     "     "   "       "         */
+        "NR_ACTIVE_FILE",         /*  "     "     "   "       "         */
+        "NR_UNEVICTABLE",         /*  "     "     "   "       "         */
+        "NR_MLOCK",               /* mlock()ed pages found and moved off LRU */
+        "NR_ANON_PAGES",  /* Mapped anonymous pages */
+        "NR_FILE_MAPPED", /* pagecache pages mapped into pagetables.
+                           only modified from process context */
+        "NR_FILE_PAGES",
+        "NR_FILE_DIRTY",
+        "NR_WRITEBACK",
+        "NR_SLAB_RECLAIMABLE",
+        "NR_SLAB_UNRECLAIMABLE",
+        "NR_PAGETABLE",           /* used for pagetables */
+        "NR_KERNEL_STACK",
+        /* Second 128 byte cacheline */
+        "NR_UNSTABLE_NFS",        /* NFS unstable pages */
+        "NR_BOUNCE",
+        "NR_VMSCAN_WRITE",
+        "NR_WRITEBACK_TEMP",      /* Writeback using temporary buffers */
+        "NR_ISOLATED_ANON",       /* Temporary isolated pages from anon lru */
+        "NR_ISOLATED_FILE",       /* Temporary isolated pages from file lru */
+        "NR_SHMEM",               /* shmem pages (included tmpfs/GEM pages) */
+        "NR_DIRTIED",             /* page dirtyings since bootup */
+        "NR_WRITTEN",             /* page writings since bootup */
+#ifdef CONFIG_NUMA
+        "NUMA_HIT",               /* allocated in intended node */
+        "NUMA_MISS",              /* allocated in non intended node */
+        "NUMA_FOREIGN",           /* was intended here, hit elsewhere */
+        "NUMA_INTERLEAVE_HIT",    /* interleaver preferred this zone */
+        "NUMA_LOCAL",             /* allocation from local node */
+        "NUMA_OTHER",             /* allocation from other node */
+#endif
+};
+
+static void dump_zone_percpu_pages(struct zone *zone)
+{
+        int cpu;
+        struct per_cpu_pageset *ps;
+        struct per_cpu_pages *pcp;
+        int i;
+
+        if (!zone) {
+                printk(KERN_ERR "zone is NULL\n");
+                return;
+        }
+
+        //printk(KERN_INFO
+        //       "\n==================================================\n");
+        printk(KERN_INFO
+               "    PER-CPU PAGESET DUMP:\n");
+        //printk(KERN_INFO
+        //       "==================================================\n");
+
+        //printk(KERN_INFO "zone      : %p\n", zone);
+        //printk(KERN_INFO "zone name : %s\n", zone->name);
+        //printk(KERN_INFO "zone idx  : %d\n", zone_idx(zone));
+
+        /*
+         * zone->pageset is a __percpu pointer.
+         *
+         * Therefore we must obtain the pageset belonging
+         * to each CPU separately.
+         */
+        for_each_online_cpu(cpu) {
+
+                ps = per_cpu_ptr(zone->pageset, cpu);
+
+                if (!ps) {
+                        printk(KERN_INFO
+                               "      CPU %d: pageset NULL\n", cpu);
+                        continue;
+                }
+
+                pcp = &ps->pcp;
+
+                printk(KERN_INFO
+                       "      _____ CPU %d _____\n",
+                       cpu);
+
+                //printk(KERN_INFO
+                //       "pageset       : %p\n", ps);
+
+                //printk(KERN_INFO
+                //       "pcp           : %p\n", pcp);
+
+                printk(KERN_INFO
+                       "      count         : %d pages\n",
+                       pcp->count);
+
+                printk(KERN_INFO
+                       "      high          : %d pages\n",
+                       pcp->high);
+
+                printk(KERN_INFO
+                       "      batch         : %d pages\n",
+                       pcp->batch);
+
+                //printk(KERN_INFO
+                //       "count bytes   : %lu\n",
+                //       (unsigned long)pcp->count << PAGE_SHIFT);
+
+                //printk(KERN_INFO
+                //       "high bytes    : %lu\n",
+                //       (unsigned long)pcp->high << PAGE_SHIFT);
+
+                //printk(KERN_INFO
+                //       "batch bytes   : %lu\n",
+                //       (unsigned long)pcp->batch << PAGE_SHIFT);
+
+                /*
+                 * PCP has one list for each PCP migrate type.
+                 */
+                printk(KERN_INFO
+                       "      PCP MIGRATE LISTS:\n");
+
+                for (i = 0; i < MIGRATE_PCPTYPES; i++) {
+
+                        struct list_head *head;
+                        unsigned long nr_pages = 0;
+                        struct list_head *pos;
+
+                        head = &pcp->lists[i];
+
+                        /*
+                         * Count pages currently on this PCP list.
+                         */
+                        list_for_each(pos, head)
+                                nr_pages++;
+
+                        printk(KERN_INFO
+                               "          list[%s] : %lu pages\n",
+                               migrate_type_name[i], nr_pages);
+                }
+
+#ifdef CONFIG_NUMA
+                printk(KERN_INFO
+                       "      expire        : %d\n",
+                       ps->expire);
+#endif
+
+#ifdef CONFIG_SMP
+                printk(KERN_INFO
+                       "      stat_threshold: %d\n",
+                       ps->stat_threshold);
+
+                printk(KERN_INFO
+                       "      percpu_vm_stat:\n");
+
+                for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++) {
+
+                        if (ps->vm_stat_diff[i] != 0) {
+                                printk(KERN_INFO
+                                       "          stat[%s] = %d\n",
+                                       zone_stat_name[i],
+                                       ps->vm_stat_diff[i]);
+                        }
+                }
+#endif
+        }
+
+        //printk(KERN_INFO
+        //       "\n==================================================\n");
+}
+
+static int dump_zone_vm_stat(struct zone *zone) {
+	int i;
+	long x;
+	printk(KERN_INFO
+	       "  zone_vm_stat:\n");
+
+	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++) {
+		x = atomic_long_read(&zone->vm_stat[i]);
+		if (x != 0) {
+			printk(KERN_INFO
+			       "    stat[%s] = %d\n",
+			       zone_stat_name[i],
+			       x);
+		}
+	}
+	return 0;
+}
+static int dump_free_area(struct zone* zone) {
+	int i;
+	printk(KERN_INFO
+	       "    FREE AREA:");
+	for (i = 0; i<MAX_ORDER; ++i) {
+		printk(KERN_INFO
+		       "      order:%2d, size:4*%4d KB, free:%5d\n",
+		       i, 1<<i, zone->free_area[i].nr_free);
+	}
+	return 0;
+}
+static void dump_zone(struct zone *zone, int nid, int zid)
+{
+	printk(KERN_INFO
+	       "    ----------------------------------------\n");
+
+	printk(KERN_INFO
+	       "    zone[%d]            : %s\n",
+	       zid, zone->name);
+
+	printk(KERN_INFO
+	       "    zone_start_pfn     : %lu\n",
+	       zone->zone_start_pfn);
+
+	printk(KERN_INFO
+	       "    spanned_pages      : %lu\n",
+	       zone->spanned_pages);
+
+	printk(KERN_INFO
+	       "    present_pages      : %lu\n",
+	       zone->present_pages);
+
+//	printk(KERN_INFO
+//	       "    managed_pages      : %lu\n",
+//	       zone->managed_pages);
+
+	printk(KERN_INFO
+	       "    free_pages         : %lu\n",
+	       zone_page_state(zone, NR_FREE_PAGES));
+
+//	printk(KERN_INFO
+//	       "    pages_min          : %lu\n",
+//	       zone->pages_min);
+
+//	printk(KERN_INFO
+//	       "    pages_low          : %lu\n",
+//	       zone->pages_low);
+
+//	printk(KERN_INFO
+//	       "    pages_high         : %lu\n",
+//	       zone->pages_high);
+
+	printk(KERN_INFO
+	       "    zone_pgdat         : %p\n",
+	       zone->zone_pgdat);
+
+	printk(KERN_INFO
+	       "    zone_pgdat->node_id: %d\n",
+	       zone->zone_pgdat->node_id);
+
+	dump_zone_percpu_pages(zone);
+	dump_free_area(zone);
+	dump_zone_vm_stat(zone);
+        printk(KERN_INFO
+               "    ----------------------------------------\n");
+}
+
+/* XXX: copied from mm/page_alloc.c */
+static char * const zone_names[MAX_NR_ZONES] = {
+#ifdef CONFIG_ZONE_DMA
+         "DMA",
+#endif
+#ifdef CONFIG_ZONE_DMA32
+         "DMA32",
+#endif
+         "Normal",
+#ifdef CONFIG_HIGHMEM
+         "HighMem",
+#endif
+         "Movable",
+};
+
+static char * const zonelist_name[MAX_ZONELISTS] = {
+#ifdef CONFIG_NUMA
+	"FALLBACK",
+#endif
+	"NO_FALLBACK"
+};
+
+static int dump_zonelist(pg_data_t *pgdat, int nid) {
+
+	int i, j;
+	struct zoneref *zr;
+	printk(KERN_INFO
+	       "zonelist (aka: zone allocation order):\n");
+
+	for (i = 0; i <MAX_ZONELISTS; ++i) {
+		printk(KERN_INFO
+		       "  nid:%d, zonelist[%s]:", nid, zonelist_name[i]);
+		for (j=0; j <= MAX_ZONES_PER_ZONELIST; ++j) {
+			zr = &(pgdat->node_zonelists[i]._zonerefs[j]);
+			if (!zr->zone) continue;
+			printk(KERN_INFO
+			       "    [nid:%d, zid:%s] ",
+			       zr->zone->node,
+			       zone_names[zr->zone_idx]);
+		}
+	}
+
+	return 0;
+
+}
+static void dump_pgdat(pg_data_t *pgdat, int nid)
+{
+	int zid;
+
+	printk(KERN_INFO "\n");
+	printk(KERN_INFO "========================================\n");
+	printk(KERN_INFO "NODE %d\n", nid);
+	printk(KERN_INFO "========================================\n");
+
+	printk(KERN_INFO
+	       "  pgdat              : %p\n",
+	       pgdat);
+
+	printk(KERN_INFO
+	       "  pgdat->node_id     : %d\n",
+	       pgdat->node_id);
+
+	printk(KERN_INFO
+	       "  node_start_pfn     : %lu\n",
+	       pgdat->node_start_pfn);
+
+	printk(KERN_INFO
+	       "  node_present_pages : %lu\n",
+	       pgdat->node_present_pages);
+
+	printk(KERN_INFO
+	       "  node_spanned_pages : %lu\n",
+	       pgdat->node_spanned_pages);
+
+	/*
+	 * Traverse all possible zones belonging to this pgdat.
+	 */
+	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
+
+		struct zone *zone;
+
+		zone = &pgdat->node_zones[zid];
+
+		/*
+		 * This zone is not populated.
+		 */
+		if (zone->present_pages == 0)
+			continue;
+
+		dump_zone(zone, nid, zid);
+	}
+
+	/* XXX: page allocation order */
+	dump_zonelist(pgdat, nid);
+}
+
+static void traverse_nodes(void)
+{
+	int nid;
+	pg_data_t *pgdat;
+
+	printk(KERN_INFO "\n");
+	printk(KERN_INFO "========================================\n");
+	printk(KERN_INFO "       X86 NUMA NODE TRAVERSAL\n");
+	printk(KERN_INFO "========================================\n");
+
+
+	/*
+	 * Manually walk all possible NUMA node IDs.
+	 */
+	for (nid = 0; nid < MAX_NUMNODES; nid++) {
+
+		printk(KERN_INFO "\n");
+		printk(KERN_INFO
+		       "Checking node %d\n", nid);
+
+
+		/*
+		 * First determine whether this node is online.
+		 */
+		if (!node_online(nid)) {
+
+			printk(KERN_INFO
+			       "  Node %d: OFFLINE\n", nid);
+
+			continue;
+		}
+
+
+		/*
+		 * Obtain the pg_data_t belonging to this node.
+		 *
+		 * x86 NUMA:
+		 *
+		 *     nid
+		 *      |
+		 *      v
+		 *   NODE_DATA(nid)
+		 *      |
+		 *      v
+		 *   pg_data_t *
+		 */
+		pgdat = NODE_DATA(nid);
+
+
+		/*
+		 * Sanity check.
+		 */
+		if (pgdat == NULL) {
+
+			printk(KERN_INFO
+			       "  Node %d: ONLINE but pgdat == NULL\n",
+			       nid);
+
+			continue;
+		}
+
+
+		printk(KERN_INFO
+		       "  Node %d: ONLINE\n", nid);
+
+		printk(KERN_INFO
+		       "  NODE_DATA(%d) = %p\n",
+		       nid, pgdat);
+
+
+		/*
+		 * Dump the pg_data_t and all its zones.
+		 */
+		dump_pgdat(pgdat, nid);
+	}
+}
+
 static long mem_debugger_ioctl(struct file *file,
                                unsigned int cmd,
                                unsigned long arg)
 {
+
+
     switch (cmd) {
 
     case MEM_SHOW_FREE_AREAS:
-
         printk(KERN_INFO
                "mem_debugger: calling show_free_areas()\n");
-
         show_free_areas();
-
         break;
+
     case COMPOUND_PAGE_TEST:
 	compound_page_test();
 	break;
@@ -334,6 +780,14 @@ static long mem_debugger_ioctl(struct file *file,
      case MEM_DUMP_VMAS:
         dump_all_vmas();
         break;
+
+     case MEM_DUMP_NUMA:
+	traverse_nodes();
+	break;
+
+     case MEM_FILECACHE_DUMP:
+	filecache_dump();
+	break;
 
     default:
         return -EINVAL;

@@ -2,7 +2,7 @@
  * Automatically generated C config: don't edit
  * Busybox version: 1.35.0
  */
-#define AUTOCONF_TIMESTAMP "2026-08-27 00:54:38 UTC"
+#define AUTOCONF_TIMESTAMP "2026-09-08 11:08:03 UTC"
 
 #define CONFIG_HAVE_DOT_CONFIG 1
 #define ENABLE_HAVE_DOT_CONFIG 1
@@ -264,7 +264,7 @@
 # define IF_SYSROOT(...) __VA_ARGS__
 #endif
 #define IF_NOT_SYSROOT(...)
-#define CONFIG_EXTRA_CFLAGS "-m32 -march=i386"
+#define CONFIG_EXTRA_CFLAGS ""
 #define ENABLE_EXTRA_CFLAGS 1
 #ifdef MAKE_SUID
 # define IF_EXTRA_CFLAGS(...) __VA_ARGS__ "CONFIG_EXTRA_CFLAGS"
@@ -272,7 +272,7 @@
 # define IF_EXTRA_CFLAGS(...) __VA_ARGS__
 #endif
 #define IF_NOT_EXTRA_CFLAGS(...)
-#define CONFIG_EXTRA_LDFLAGS "-m32"
+#define CONFIG_EXTRA_LDFLAGS ""
 #define ENABLE_EXTRA_LDFLAGS 1
 #ifdef MAKE_SUID
 # define IF_EXTRA_LDFLAGS(...) __VA_ARGS__ "CONFIG_EXTRA_LDFLAGS"
@@ -1340,6 +1340,14 @@
 # define IF_FEATURE_DD_STATUS(...) __VA_ARGS__
 #endif
 #define IF_NOT_FEATURE_DD_STATUS(...)
+#define CONFIG_DEVICE_DEBUGGER 1
+#define ENABLE_DEVICE_DEBUGGER 1
+#ifdef MAKE_SUID
+# define IF_DEVICE_DEBUGGER(...) __VA_ARGS__ "CONFIG_DEVICE_DEBUGGER"
+#else
+# define IF_DEVICE_DEBUGGER(...) __VA_ARGS__
+#endif
+#define IF_NOT_DEVICE_DEBUGGER(...)
 #define CONFIG_DF 1
 #define ENABLE_DF 1
 #ifdef MAKE_SUID
@@ -1712,6 +1720,14 @@
 # define IF_MEM_DEBUGGER(...) __VA_ARGS__
 #endif
 #define IF_NOT_MEM_DEBUGGER(...)
+#define CONFIG_MINI_STRACE 1
+#define ENABLE_MINI_STRACE 1
+#ifdef MAKE_SUID
+# define IF_MINI_STRACE(...) __VA_ARGS__ "CONFIG_MINI_STRACE"
+#else
+# define IF_MINI_STRACE(...) __VA_ARGS__
+#endif
+#define IF_NOT_MINI_STRACE(...)
 #define CONFIG_MKDIR 1
 #define ENABLE_MKDIR 1
 #ifdef MAKE_SUID

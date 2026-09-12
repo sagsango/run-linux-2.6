@@ -1,0 +1,1 @@
+#define CONFIG_MINI_STRACE 1

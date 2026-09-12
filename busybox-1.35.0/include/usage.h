@@ -824,6 +824,12 @@
        "4+0 records in\n" \
        "4+0 records out\n" \
 
+#define device_debugger_trivial_usage \
+       "" \
+
+#define device_debugger_full_usage "\n\n" \
+       "Interactive device debugging ioctl utility" \
+
 #define df_trivial_usage \
 	"[-Pk" \
 	IF_FEATURE_HUMAN_READABLE("mh") \
@@ -1287,6 +1293,12 @@
 
 #define mem_debugger_full_usage "\n\n" \
        "Interactive memory debugging ioctl utility" \
+
+#define mini_strace_trivial_usage \
+       "PROGRAM [ARGS...]" \
+
+#define mini_strace_full_usage "\n\n" \
+       "Trace system calls, registers and stack" \
 
 #define mkdir_trivial_usage \
        "[-m MODE] [-p] DIRECTORY..." \
