@@ -34,8 +34,10 @@ struct address_space;
 struct page {
 	unsigned long flags;		/* Atomic flags, some possibly
 					 * updated asynchronously */
+	/* XXX: refcount */
 	atomic_t _count;		/* Usage count, see below. */
 	union {
+		/* XXX: map count : TODO: run folsom program it will show*/
 		atomic_t _mapcount;	/* Count of ptes mapped in mms,
 					 * to show when page is mapped
 					 * & limit reverse map searches.
